@@ -540,9 +540,9 @@ const CARDS = {
   //   骷髅气球：523 血 / 快 / 飞行且只打建筑 / 被打爆或撞塔时 163 范围伤害 + 掉 7 个骷髅
   //   吹箭哥布林：261 / 143 / 0.8s / 极快 / 6.5 格 / 打空地
   //   藤蔓：153 每秒（塔 35）半径 2.5 / 持续 2 秒 / 最多定身 3 个 / 把飞行单位拽到地面
-  goblinGang:  { name:'哥布林团伙', cost:3, type:'troop', count:6, hp:202, dmg:125, hitSpeed:1.1, speed:SP_VFAST, range:R_MELEE_S, radius:15, glyph:'👺', c1:'#8fd45a', c2:'#3f7a1c', targetsAir:false, desc:'前排 3 个哥布林、后排 3 个哥布林投矛手，一次铺开两种兵' },
+  goblinGang:  { name:'哥布林团伙', cost:3, type:'troop', count:6, hp:202, dmg:125, hitSpeed:1.1, speed:SP_VFAST, range:R_MELEE_S, radius:15, glyph:'👥', c1:'#8fd45a', c2:'#3f7a1c', targetsAir:false, desc:'前排 3 个哥布林、后排 3 个哥布林投矛手，一次铺开两种兵' },
   skeletonBarrel:{ name:'骷髅气球', cost:3, type:'troop', count:1, hp:523, dmg:0, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_S, radius:26, glyph:'🎈', c1:'#d8cfb4', c2:'#7a6f58', targetsAir:false, flying:true, buildingsOnly:true, suicide:true, blast:RG(1.6), deathDmg:163, deathBlast:RG(1.6), deathSpawn:7, spawnCard:'skeletons', desc:'飞行，只打建筑；撞到塔或被击落时炸开 163 范围伤害，并掉出 7 个骷髅兵' },
-  dartGoblin:  { name:'吹箭哥布林', cost:3, type:'troop', count:1, hp:261, dmg:143, hitSpeed:0.8, speed:SP_VFAST, range:RG(6.5), radius:16, glyph:'🎯', c1:'#9ad44a', c2:'#4f7a1c', targetsAir:true, shot:'dart', desc:'0.8 秒一发的远程吹箭，射程 6.5 格，能打空中（DPS 179）' },
+  dartGoblin:  { name:'吹箭哥布林', cost:3, type:'troop', count:1, hp:261, dmg:143, hitSpeed:0.8, speed:SP_VFAST, range:RG(6.5), radius:16, glyph:'🪶', c1:'#9ad44a', c2:'#4f7a1c', targetsAir:true, shot:'dart', desc:'0.8 秒一发的远程吹箭，射程 6.5 格，能打空中（DPS 179）' },
   vines:       { name:'藤蔓法术',   cost:3, type:'spell', dmg:153, towerDmg:35, spellRadius:RG(2.5), vineDur:2, vineMax:3, glyph:'🌿', c1:'#4fae5a', c2:'#1f6b34', desc:'半径 2.5 格，持续 2 秒：每秒 153 伤害（塔 35），最多定身 3 个敌人，并把飞行单位拽到地面' }
 };
 const CARD_POOL = Object.keys(CARDS);
