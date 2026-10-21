@@ -1433,7 +1433,7 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     kbX: 0, kbY: 0, kbT: 0,
     jumpRiver: !!c.jumpRiver, jump: 0, jumpT: 0,
     cool: 0, rt: Math.random()*0.3, target: null, dead: false, atkReady: false,
-    screamT: 0,
+    screamed: false,
     // 定身（藤蔓法术）：>0 时不能移动，但仍能攻击；wasFlying 记录「被拽下来的飞行单位」
     rootT: 0, wasFlying: false,
     // 护盾（骷髅守卫）：先扣护盾再扣血；狂暴：踩在狂暴区域里的剩余刷新时间
@@ -2101,11 +2101,10 @@ function updateEnt(e, dt){
     }
   }
 
-  // 攻城炸弹人：一路尖叫着冲向塔（皇室战争里就是这声）。
-  //   落地 / 解控后立刻喊一声，之后每 1.52 秒接一声（正好是素材长度），死了自然停。
-  if (e.cardId === 'wallBreakers'){
-    if (e.spawnT > 0 || e.stun > 0) e.screamT = 0.12;
-    else if ((e.screamT -= dt) <= 0){ sfxWallRun(); e.screamT = 1.52; }
+  // 攻城炸弹人：落地时喊一声就够了（整张卡只喊一次，不循环）
+  if (e.cardId === 'wallBreakers' && !e.screamed && !(e.spawnT > 0) && e.stun <= 0){
+    e.screamed = true;
+    sfxWallRun();
   }
 
   // 建筑的「血量」和「持续时间」共用同一个生命池：

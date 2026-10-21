@@ -23,7 +23,7 @@
 - **卡牌图标去重**：吹箭哥布林 🎯 → 🪶（原来和万箭齐发撞图标）、哥布林团伙 👺 → 👥（原来和哥布林撞图标）
 
 ### 音效
-- 攻城炸弹人：冲刺时持续尖叫（`wallb_scream_01`），自爆时专属爆破声（`wallbreaker_explo_01`）
+- 攻城炸弹人：落地时喊一声（`wallb_scream_01`，整张卡只播一次，不循环），自爆时专属爆破声（`wallbreaker_explo_01`）
 
 ### 发布
 - 上线 GitHub Pages：https://golemsuomi.github.io/clash-lite/
