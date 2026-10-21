@@ -534,7 +534,16 @@ const CARDS = {
   rage:        { name:'狂暴法术',   cost:2, type:'spell', dmg:179, towerDmg:46, spellRadius:RG(3), rageDur:4.5, glyph:'🌀', c1:'#c86ae0', c2:'#7a2a9a', desc:'半径 3 格，179 伤害（塔 46）；4.5 秒内区域里的己方单位移动与攻击速度 +30%' },
   goblinBarrel:{ name:'哥布林飞桶', cost:3, type:'spell', spellRadius:RG(1.5), spawnTroops:'goblin', spawnCount:3, projSpeed:RG(800/60), projKind:'barrel', glyph:'🪂', c1:'#8fbf4a', c2:'#4f7a1c', desc:'飞向目标点砸开，召唤 3 个哥布林（呈三角形分布）；本身不造成伤害' },
   tombstone:   { name:'骷髅墓碑',   cost:3, type:'building', hp:529, dmg:0, hitSpeed:1, range:RG(0), radius:26, glyph:'🪦', c1:'#9a8fb0', c2:'#4f4566', lifetime:30, spawnEvery:4, spawnCard:'skeletons', spawnCount:2, deathSpawn:4, desc:'建筑，落地立刻召唤 2 个骷髅兵，之后每 4 秒再召唤 2 个，持续 30 秒；被摧毁时额外召唤 4 个' },
-  guards:      { name:'骷髅守卫',   cost:3, type:'troop', count:3, hp:81, shield:256, dmg:117, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_L, radius:15, glyph:'🦴', c1:'#b9b9c4', c2:'#5f5f7a', targetsAir:false, desc:'三只骷髅，护盾可完整挡下一次任意大小的伤害（DPS 117）' }
+  guards:      { name:'骷髅守卫',   cost:3, type:'troop', count:3, hp:81, shield:256, dmg:117, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_L, radius:15, glyph:'🦴', c1:'#b9b9c4', c2:'#5f5f7a', targetsAir:false, desc:'三只骷髅，护盾可完整挡下一次任意大小的伤害（DPS 117）' },
+  // —— 第七批：哥布林团伙 / 骷髅气球 / 吹箭哥布林 / 藤蔓法术（数值表最新 4 行）——
+  //   团伙：前排 3 个哥布林 + 后排 3 个哥布林投矛手（两种兵一起出，见 doSpawn 的特例）
+  //   骷髅气球：523 血 / 快 / 飞行且只打建筑 / 被打爆或撞塔时 163 范围伤害 + 掉 7 个骷髅
+  //   吹箭哥布林：261 / 143 / 0.8s / 极快 / 6.5 格 / 打空地
+  //   藤蔓：153 每秒（塔 35）半径 2.5 / 持续 2 秒 / 最多定身 3 个 / 把飞行单位拽到地面
+  goblinGang:  { name:'哥布林团伙', cost:3, type:'troop', count:6, hp:202, dmg:125, hitSpeed:1.1, speed:SP_VFAST, range:R_MELEE_S, radius:15, glyph:'👺', c1:'#8fd45a', c2:'#3f7a1c', targetsAir:false, desc:'前排 3 个哥布林、后排 3 个哥布林投矛手，一次铺开两种兵' },
+  skeletonBarrel:{ name:'骷髅气球', cost:3, type:'troop', count:1, hp:523, dmg:0, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_S, radius:26, glyph:'🎈', c1:'#d8cfb4', c2:'#7a6f58', targetsAir:false, flying:true, buildingsOnly:true, suicide:true, blast:RG(1.6), deathDmg:163, deathBlast:RG(1.6), deathSpawn:7, spawnCard:'skeletons', desc:'飞行，只打建筑；撞到塔或被击落时炸开 163 范围伤害，并掉出 7 个骷髅兵' },
+  dartGoblin:  { name:'吹箭哥布林', cost:3, type:'troop', count:1, hp:261, dmg:143, hitSpeed:0.8, speed:SP_VFAST, range:RG(6.5), radius:16, glyph:'🎯', c1:'#9ad44a', c2:'#4f7a1c', targetsAir:true, shot:'dart', desc:'0.8 秒一发的远程吹箭，射程 6.5 格，能打空中（DPS 179）' },
+  vines:       { name:'藤蔓法术',   cost:3, type:'spell', dmg:153, towerDmg:35, spellRadius:RG(2.5), vineDur:2, vineMax:3, glyph:'🌿', c1:'#4fae5a', c2:'#1f6b34', desc:'半径 2.5 格，持续 2 秒：每秒 153 伤害（塔 35），最多定身 3 个敌人，并把飞行单位拽到地面' }
 };
 const CARD_POOL = Object.keys(CARDS);
 // 牌库展示顺序：先按圣水从低到高；同费时按「部队 → 建筑 → 法术」分组，
@@ -779,6 +788,8 @@ function sfxZap(){ beep(2300,0.04,'square',0.030); setTimeout(()=>beep(330,0.12,
 function sfxDeploy(){ beep(300,0.09,'triangle',0.05); setTimeout(()=>beep(200,0.08,'triangle',0.04),40); }
 function sfxHit(){ beep(520,0.03,'square',0.012); }
 function sfxSpell(){ beep(120,0.35,'sawtooth',0.07); }
+// 藤蔓：一声低频「缠住」+ 两下叶片摩擦
+function sfxVines(){ beep(180,0.26,'triangle',0.055); setTimeout(()=>beep(260,0.14,'sine',0.030), 60); setTimeout(()=>beep(210,0.16,'sine',0.024), 150); }
 // 雷电法术：先一声炸雷，再补两下低频回响
 // 雷击：雷电法术的三道雷接续落下，后面的比第一道轻一点，避免三声叠在一起炸耳朵
 function sfxThunder(k){
@@ -1280,7 +1291,29 @@ function strikeBolt(c, e, sx, sy, quiet){
 }
 
 // 落下一波：先出特效 / 音效，再结算伤害
+// 藤蔓法术：不是「砸下去就结算」，而是在落点长出一片 2 秒的藤蔓（见 G.zones 里的 kind:'vines'）：
+//   · 每 0.2 秒结算一次持续伤害（153/秒，塔 35/秒）
+//   · 最多同时定身 3 个敌人（先近后远）
+//   · 飞行单位被拽到地面 —— 定身期间按地面单位处理，地面兵也能打到它
+function castVines(c, team, x, y){
+  G.fx.push({ type:'ring',  x, y, r0: 10, r1: c.spellRadius, t:0, life:0.45, color:'#8ef0a0' });
+  G.fx.push({ type:'spell', x, y, r: c.spellRadius, a:0.50, t:0, life:0.5, color:'#3fae5a' });
+  sfxVines();
+  G.zones.push({ kind:'vines', x, y, r: c.spellRadius, t: c.vineDur, team, born: 0,
+                 dps: c.dmg, towerDps: c.towerDmg != null ? c.towerDmg : c.dmg,
+                 max: c.vineMax || 3, tick: 0 });
+}
+
+// 定身：不能移动，但可以正常攻击（和皇室战争的「定身」一致）。
+//   飞行单位被拽下来：临时把 flying 关掉，定身结束时再恢复（wasFlying 记录原状态）。
+function applyRoot(e, dur){
+  if (!e || e.dead || e.isTower || e.isBuilding) return;
+  e.rootT = Math.max(e.rootT || 0, dur);
+  if (e.flying){ e.wasFlying = true; e.flying = false; }
+}
+
 function spellVolley(c, team, x, y, idx){
+  if (c.vineDur){ castVines(c, team, x, y); return; }
   const multi = (c.waves || 1) > 1;
   const hits = spellTargets(c, team, x, y, idx === 0);
 
@@ -1401,6 +1434,8 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     jumpRiver: !!c.jumpRiver, jump: 0, jumpT: 0,
     cool: 0, rt: Math.random()*0.3, target: null, dead: false, atkReady: false,
     screamT: 0,
+    // 定身（藤蔓法术）：>0 时不能移动，但仍能攻击；wasFlying 记录「被拽下来的飞行单位」
+    rootT: 0, wasFlying: false,
     // 护盾（骷髅守卫）：先扣护盾再扣血；狂暴：踩在狂暴区域里的剩余刷新时间
     shield: c.shield || 0, shieldMax: c.shield || 0, rageT: 0,
     // 固定进攻路（0=左 1=右）：召唤出来的兵用召唤者的路，避免「同一点出生的两个兵各走一边」
@@ -1472,6 +1507,19 @@ function doSpawn(cardId, team, x, y){
       burrow: !!c.burrow, emerge: c.burrow ? 0 : 1, hidden: !!c.burrow, wasUp: false
     });
     G.fx.push({ type:'ring', x, y, r0: 4, r1: 44, t:0, life: DEPLOY_TIME, color:'#ffffff' });
+    return;
+  }
+
+  // 哥布林团伙：两种兵一起出 —— 前排 3 个哥布林，后排 3 个哥布林投矛手
+  //   （spawnUnit 每次只出一个，所以这里按 3+3 逐个点名，别走通用 formation）
+  if (cardId === 'goblinGang'){
+    const fwd = team === 'ai' ? 1 : -1;
+    const lane = x < AW / 2 ? 0 : 1;
+    for (const dx of [-30, 0, 30])
+      spawnUnit('goblin', team, clamp(x + dx, 34, AW - 34), clamp(y + fwd * 16, 34, AH - 34), lane);
+    for (const dx of [-30, 0, 30])
+      spawnUnit('spearGoblins', team, clamp(x + dx, 34, AW - 34), clamp(y - fwd * 22, 34, AH - 34), lane);
+    G.fx.push({ type:'ring', x, y, r0: 4, r1: 46, t:0, life: DEPLOY_TIME, color:'#ffffff' });
     return;
   }
 
@@ -1632,7 +1680,8 @@ const SHOT_DEF = {
   flame:      { speed: 700,  color: '#ff9a3a', w: 7.5 },
   bomb:       { speed: 600,  color: '#2b2b33', w: 8.0, arc: 30 },
   cannonball: { speed: 760,  color: '#4a4a55', w: 7.0, arc: 12 },
-  zap:        { speed: 3000, color: '#bfe0ff', w: 3.0 }
+  zap:        { speed: 3000, color: '#bfe0ff', w: 3.0 },
+  dart:       { speed: 1150, color: '#c9ff8e', w: 3.0 }
 };
 
 function shotOrigin(u){
@@ -1772,6 +1821,10 @@ function explodeUnit(e){
   if (e.cardId === 'wallBreakers') sfxWallBoom();
   else if (icy) sfxFreeze(); else if (healy) sfxHeal(); else if (zappy) sfxZap(); else sfxBoom();
   e.hp = 0;
+  // 骷髅气球这类「炸开之后还要走亡语」的单位：交给 kill() 统一结算
+  //   （163 范围伤害 + 掉 7 个骷髅）。其它自爆单位没有亡语，保持原来的直接消失。
+  const ec = e.cardId ? CARDS[e.cardId] : null;
+  if (ec && (ec.deathBlast || ec.deathSpawn)){ kill(e); return; }
   e.dead = true;
 }
 
@@ -1905,10 +1958,42 @@ function update(dt){
     }
   }
 
-  // 狂暴区域：区域内的己方单位持续获得增益（离开区域 0.12 秒后失效）
+  // 地面区域（狂暴 / 藤蔓）
   if (G.zones && G.zones.length){
     for (const z of G.zones){
       z.t -= dt;
+      if (z.kind === 'vines'){
+        // 藤蔓：每 0.2 秒结算一次持续伤害；最多同时缠住 max 个（先近后远）
+        //   一旦缠住就「粘」到区域结束 —— 否则每帧按距离重排，被缠的兵会一会儿松开一会儿又被抓住
+        z.tick -= dt;
+        if (z.tick <= 0){
+          z.tick += 0.2;
+          const hit = [];
+          for (const e of G.ents){
+            if (e.dead || e.team === z.team || e.hidden) continue;
+            if (dist(e, z) > z.r + e.radius * 0.6) continue;
+            hit.push(e);
+          }
+          for (const e of hit)
+            damage(e, (e.isTower ? z.towerDps : z.dps) * 0.2, null, true);
+          // 已缠住的：还在圈里就继续缠
+          z.rooted = (z.rooted || []).filter(id => {
+            const u = G.ents.find(o => o.id === id);
+            return u && !u.dead && dist(u, z) <= z.r + u.radius * 0.6;
+          });
+          hit.sort((a, b) => dist(a, z) - dist(b, z));
+          for (const e of hit){
+            if (e.isTower || z.rooted.length >= z.max) continue;
+            if (!z.rooted.includes(e.id)) z.rooted.push(e.id);
+          }
+          for (const id of z.rooted){
+            const u = G.ents.find(o => o.id === id);
+            if (u) applyRoot(u, 0.26);
+          }
+        }
+        continue;
+      }
+      // 狂暴区域：区域内的己方单位持续获得增益（离开区域 0.12 秒后失效）
       for (const e of G.ents){
         if (e.dead || e.team !== z.team || e.isTower) continue;
         if (dist(e, z) > z.r + e.radius * 0.6) continue;
@@ -2006,6 +2091,15 @@ function updateEnt(e, dt){
   // 攻速：减速 ×0.65，狂暴 ×1.3（两者可以同时存在，各自生效）
   if (e.stun > 0) e.stun -= dt;
   else e.cool -= dt * (e.slowT > 0 ? SLOW_RATE : 1) * (e.rageT > 0 ? RAGE_RATE : 1);
+
+  // 定身（藤蔓）：计时结束把被拽下来的飞行单位放回去
+  if (e.rootT > 0){
+    e.rootT -= dt;
+    if (e.rootT <= 0){
+      e.rootT = 0;
+      if (e.wasFlying){ e.flying = true; e.wasFlying = false; }
+    }
+  }
 
   // 攻城炸弹人：一路尖叫着冲向塔（皇室战争里就是这声）。
   //   落地 / 解控后立刻喊一声，之后每 1.52 秒接一声（正好是素材长度），死了自然停。
@@ -2181,8 +2275,8 @@ function updateEnt(e, dt){
     return;
   }
 
-  // 移动
-  if (e.isTower || e.isBuilding || e.spawnT > 0) return;
+  // 移动（定身期间原地不动，但仍然可以攻击）
+  if (e.isTower || e.isBuilding || e.spawnT > 0 || e.rootT > 0) return;
   const wp = firstWaypoint(e, t);
   const ang = Math.atan2(wp.y - e.y, wp.x - e.x);
   const step = e.speed * dt * (e.slowT > 0 ? SLOW_RATE : 1) * (e.rageT > 0 ? RAGE_RATE : 1);
@@ -2606,7 +2700,7 @@ function draw(){
   }
 
   // 狂暴区域：画在地面上、单位之下
-  for (const z of (G.zones || [])) drawRageZone(z);
+  for (const z of (G.zones || [])) (z.kind === 'vines' ? drawVinesZone(z) : drawRageZone(z));
 
   // 按 y 排序绘制：站在塔「后面」（y 更小）的单位先画，塔再盖上去；
   //   站在塔前面的后画。否则塔后的单位会糊在塔冠上，看起来像穿过去了。
@@ -2710,6 +2804,44 @@ function drawRollPreview(x, y, c, ok){
 }
 
 // 狂暴区域：紫色地面光圈 + 旋转符文点，最后 0.5 秒淡出
+function drawVinesZone(z){
+  const fade = clamp(z.t / 0.45, 0, 1);
+  const pulse = 0.5 + 0.5 * Math.sin(G.t * 6.2);
+  ctx.save();
+  ctx.globalAlpha = fade;
+  // 地面：暗绿底 + 边缘淡出
+  const g = ctx.createRadialGradient(z.x, z.y, z.r * 0.10, z.x, z.y, z.r);
+  g.addColorStop(0, 'rgba(38,96,52,0.50)');
+  g.addColorStop(0.62, 'rgba(30,82,44,0.38)');
+  g.addColorStop(0.90, 'rgba(22,66,36,0.18)');
+  g.addColorStop(1, 'rgba(18,58,32,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
+
+  // 缠住的外圈
+  ctx.strokeStyle = 'rgba(126,214,132,' + (0.55 + 0.28 * pulse).toFixed(2) + ')';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(z.x, z.y, z.r * (0.955 + 0.03 * pulse), 0, Math.PI * 2); ctx.stroke();
+
+  // 藤蔓：8 条从边缘往中心卷的曲线，随时间摆动
+  for (let i = 0; i < 8; i++){
+    const a0 = i * Math.PI / 4 + Math.sin(G.t * 1.4 + i) * 0.12;
+    const a1 = a0 + 0.55 * Math.sin(G.t * 2.1 + i * 1.7);
+    ctx.strokeStyle = 'rgba(96,186,110,0.85)';
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.moveTo(z.x + Math.cos(a0) * z.r * 0.96, z.y + Math.sin(a0) * z.r * 0.96);
+    ctx.quadraticCurveTo(
+      z.x + Math.cos(a0 + a1) * z.r * 0.55, z.y + Math.sin(a0 + a1) * z.r * 0.55,
+      z.x + Math.cos(a1) * z.r * 0.22,     z.y + Math.sin(a1) * z.r * 0.22);
+    ctx.stroke();
+  }
+  // 中心嫩芽
+  ctx.fillStyle = 'rgba(190,255,196,0.9)';
+  ctx.beginPath(); ctx.arc(z.x, z.y, 3.4 + pulse * 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 function drawRageZone(z){
   const fade = clamp(z.t / 0.5, 0, 1);
   const pulse = 0.5 + 0.5 * Math.sin(G.t * 7.5);
@@ -3220,6 +3352,16 @@ function drawUnit(u){
     ctx.strokeStyle = 'rgba(120,185,255,0.22)';
     ctx.lineWidth = 5.5;
     ctx.beginPath(); ctx.arc(u.x, by, r * 1.20, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // 被藤蔓定身：脚下一圈绿色缠绕环
+  if (u.rootT > 0){
+    const p = 0.5 + 0.5 * Math.sin(u.anim * 10);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(126,224,140,' + (0.44 + 0.30 * p).toFixed(2) + ')';
+    ctx.lineWidth = 2.8;
+    ctx.beginPath(); ctx.arc(u.x, by, r * 0.95, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
 
@@ -3746,9 +3888,10 @@ function drawFx(f){
     } else {
       // 箭 / 长矛 / 弩箭 / 子弹：光晕拖尾 → 深色描边 → 亮色主体 → 箭头
       const isBullet = f.kind === 'bullet', isSpear = f.kind === 'spear', isRoyal = f.kind === 'royal';
-      const L  = isBullet ? 20 : (isSpear ? 34 : 27);
-      const hl = isRoyal ? 12 : 9;                       // 箭头长度
-      const hw = isRoyal ? 7.5 : (isSpear ? 4.4 : 5.4);  // 箭头半宽
+      const isDart = f.kind === 'dart';
+      const L  = isBullet ? 20 : (isSpear ? 34 : (isDart ? 23 : 27));
+      const hl = isRoyal ? 12 : (isDart ? 7 : 9);                        // 箭头长度
+      const hw = isRoyal ? 7.5 : (isSpear ? 4.4 : (isDart ? 3.4 : 5.4));  // 箭头半宽
       const dark = isBullet ? 'rgba(70,45,10,0.45)' : 'rgba(22,38,16,0.55)';
 
       // 1) 光晕 + 渐隐拖尾：草地背景上细线容易被吃掉，靠这层把弹道"点"出来
@@ -4083,10 +4226,11 @@ function renderDeck(){
 //
 // 进攻核心（Win Condition）：这张卡的**主要用途就是拆塔**，没有它整套牌只能被动挨打。
 //   · 只打建筑、真能拆塔：巨人（3968 血坦克）/ 野猪骑士（越河高速）/ 攻城炸弹人（自爆 302×2）
+//     / 骷髅气球（飞到塔上炸 163 + 掉 7 个骷髅）
 //   · 能直接落到塔上输出：哥布林飞桶（3 个哥布林砸在塔边）
 //   注意：骑士、皮卡、武神、野蛮人这类是「防守后反打」的兵，不算核心；
 //   戈仑冰人虽然只打建筑，但 84 伤 / 2.5 秒，拆不动塔，只能算小坦克。
-const WIN_CONDS = ['giant', 'hogRider', 'wallBreakers', 'goblinBarrel'];
+const WIN_CONDS = ['giant', 'hogRider', 'wallBreakers', 'goblinBarrel', 'skeletonBarrel'];
 
 function randomDeck(){
   const avg = d => d.reduce((s, id) => s + CARDS[id].cost, 0) / d.length;
