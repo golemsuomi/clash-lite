@@ -412,6 +412,9 @@ const RIVER_BOT  = RIVER_MID + RIVER_HALF;  // 748
 const BRIDGE = [{ x: 150, w: 126 }, { x: 650, w: 126 }];
 const TOWER_ROW   = 302;                    // 公主塔中心那一排：距本方底线 ≈ 6.8 格
 const KING_ROW    = 122;                    // 国王塔中心那一排：距本方底线 ≈ 2.75 格
+// 推掉敌方某侧公主塔后，该侧可下牌的边界 = 「从公主塔往己方半场退 4 格」的那条线。
+//   302 + 4×44.4 ≈ 480：也就是塔前 4 格 —— 破了塔能往对面推进一段，但**不能贴着塔根下兵**。
+const TOWER_OPEN_ROW = TOWER_ROW + 4 * TILE;
 const DEPLOY_LINE = RIVER_MID;              // 己方部署边界：桥的正中间（河心）
 const JUMP_TIME   = 0.42;                   // 跳河：从起跳到落地的耗时（秒）
 const JUMP_LIFT   = 52;                     // 跳河：最高点的视觉抬升（战场单位）
@@ -1101,14 +1104,14 @@ function canDeploy(team, x, y, card){
   if (team === 'player'){
     // 己方半场：从桥的正中间（河心）往下都可部署
     if (y > DEPLOY_LINE) return true;
-    // 推掉敌方某侧公主塔后，该侧解锁到敌方公主塔那一排为止
-    if (!towerAlive('ai','left')  && x < AW/2 && y > TOWER_ROW) return true;
-    if (!towerAlive('ai','right') && x > AW/2 && y > TOWER_ROW) return true;
+    // 推掉敌方某侧公主塔后，该侧解锁到「距公主塔 4 格」的那条线（≈ 敌方国王塔那一排）
+    if (!towerAlive('ai','left')  && x < AW/2 && y > TOWER_OPEN_ROW) return true;
+    if (!towerAlive('ai','right') && x > AW/2 && y > TOWER_OPEN_ROW) return true;
     return false;
   } else {
     if (y < DEPLOY_LINE) return true;
-    if (!towerAlive('player','left')  && x < AW/2 && y < AH - TOWER_ROW) return true;
-    if (!towerAlive('player','right') && x > AW/2 && y < AH - TOWER_ROW) return true;
+    if (!towerAlive('player','left')  && x < AW/2 && y < AH - TOWER_OPEN_ROW) return true;
+    if (!towerAlive('player','right') && x > AW/2 && y < AH - TOWER_OPEN_ROW) return true;
     return false;
   }
 }
@@ -2671,19 +2674,19 @@ function draw(){
       ctx.fillStyle = 'rgba(90,160,255,0.20)';
       // 己方半场：桥的正中间往下
       ctx.fillRect(0, DEPLOY_LINE, AW, AH - DEPLOY_LINE);
-      // 已推掉的塔那一侧：解锁到敌方公主塔那一排
-      if (!towerAlive('ai','left'))  ctx.fillRect(0, TOWER_ROW, AW/2, DEPLOY_LINE - TOWER_ROW);
-      if (!towerAlive('ai','right')) ctx.fillRect(AW/2, TOWER_ROW, AW/2, DEPLOY_LINE - TOWER_ROW);
+      // 已推掉的塔那一侧：解锁到「距公主塔 4 格」的那条线（≈ 敌方国王塔那一排）
+      if (!towerAlive('ai','left'))  ctx.fillRect(0, TOWER_OPEN_ROW, AW/2, DEPLOY_LINE - TOWER_OPEN_ROW);
+      if (!towerAlive('ai','right')) ctx.fillRect(AW/2, TOWER_OPEN_ROW, AW/2, DEPLOY_LINE - TOWER_OPEN_ROW);
       // 边界线
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.fillRect(0, DEPLOY_LINE - 1.5, AW, 3);
       if (!towerAlive('ai','left')){
-        ctx.fillRect(0, TOWER_ROW - 1.5, AW/2, 3);
-        ctx.fillRect(AW/2 - 1.5, TOWER_ROW, 3, DEPLOY_LINE - TOWER_ROW);
+        ctx.fillRect(0, TOWER_OPEN_ROW - 1.5, AW/2, 3);
+        ctx.fillRect(AW/2 - 1.5, TOWER_OPEN_ROW, 3, DEPLOY_LINE - TOWER_OPEN_ROW);
       }
       if (!towerAlive('ai','right')){
-        ctx.fillRect(AW/2, TOWER_ROW - 1.5, AW/2, 3);
-        ctx.fillRect(AW/2 - 1.5, TOWER_ROW, 3, DEPLOY_LINE - TOWER_ROW);
+        ctx.fillRect(AW/2, TOWER_OPEN_ROW - 1.5, AW/2, 3);
+        ctx.fillRect(AW/2 - 1.5, TOWER_OPEN_ROW, 3, DEPLOY_LINE - TOWER_OPEN_ROW);
       }
     }
     ctx.restore();
