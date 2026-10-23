@@ -261,10 +261,20 @@ canvas{border-radius:12px;box-shadow:0 8px 26px rgba(20,45,90,.35);display:block
 #ghost{position:fixed;width:62px;height:82px;border-radius:10px;pointer-events:none;display:none;z-index:99;
   align-items:center;justify-content:center;font-size:30px;background:rgba(255,255,255,.9);border:2px solid #ffe14d;
   box-shadow:0 8px 22px rgba(0,0,0,.3);transform:translate(-50%,-50%)}
-#toast{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);background:rgba(18,30,52,.9);color:#fff;
+#toast{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:rgba(18,30,52,.9);color:#fff;
   padding:12px 26px;border-radius:14px;font-size:20px;font-weight:900;letter-spacing:2px;pointer-events:none;
   opacity:0;transition:opacity .25s;z-index:60}
 #toast.on{opacity:1}
+/* 最后 10 秒：屏幕正中央的大倒数 */
+#countdown{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  display:none;flex-direction:column;align-items:center;gap:2px;pointer-events:none;z-index:58}
+#countdown.on{display:flex}
+#cdNum{font-size:96px;font-weight:900;line-height:1;color:#fff;letter-spacing:2px;
+  text-shadow:0 0 22px rgba(255,86,86,.95), 0 6px 0 rgba(0,0,0,.35), 0 12px 30px rgba(0,0,0,.55)}
+#cdNum.pop{animation:cdPop .42s ease-out}
+@keyframes cdPop{0%{transform:scale(1.6);opacity:.15}55%{transform:scale(.93)}100%{transform:scale(1);opacity:1}}
+#cdCap{font-size:16px;font-weight:900;letter-spacing:5px;color:#ffdada;
+  text-shadow:0 2px 10px rgba(0,0,0,.8)}
 
 /* ---------- 结算 ---------- */
 #scrResult{background:rgba(12,22,42,.82);align-items:center;justify-content:center;gap:18px;backdrop-filter:blur(4px)}
@@ -351,7 +361,7 @@ canvas{border-radius:12px;box-shadow:0 8px 26px rgba(20,45,90,.35);display:block
       <button class="iconbtn" id="btnQuit" style="right:48px">✕</button>
     </div>
     <div class="gameBody">
-      <div class="arenaWrap" id="arenaWrap"><canvas id="cv"></canvas></div>
+      <div class="arenaWrap" id="arenaWrap"><canvas id="cv"></canvas><div id="countdown"><div id="cdNum">10</div><div id="cdCap">还剩十秒</div></div></div>
       <div class="bottom">
         <div class="elixirBar" id="elixirBar">
           <div class="elixirFill" id="elixirFill"></div>
@@ -569,7 +579,18 @@ const CARDS = {
   // 下面两张是圣水戈仑的「分身」，不进卡池（hidden: true）
   elixirGolemite:{ name:'圣水小戈仑', cost:3, type:'troop', hidden:true, count:1, hp:762, dmg:128, hitSpeed:1.1, speed:SP_SLOW, range:R_MELEE_S, radius:20, glyph:'🧪', c1:'#c07ae0', c2:'#6a2a8a', targetsAir:false, buildingsOnly:true, deathSpawn:2, spawnCard:'elixirBlob', elixirGift:0.5 },
   elixirBlob:  { name:'圣水泡泡',   cost:3, type:'troop', hidden:true, count:1, hp:360, dmg:64, hitSpeed:1.1, speed:SP_SLOW, range:R_MELEE_S, radius:15, glyph:'🫧', c1:'#d9a8f0', c2:'#7a3a9a', targetsAir:false, buildingsOnly:true, elixirGift:0.5 },
-  tornado:     { name:'飓风法术',   cost:3, type:'spell', dmg:84, towerDmg:25, spellRadius:RG(5.5), tornadoDur:1, glyph:'🌪️', c1:'#8fd0e8', c2:'#3a7a9a', desc:'半径 5.5 格、持续 1 秒：把空中和地面的单位往中心卷，总共 84 伤害（塔 25）' }
+  tornado:     { name:'飓风法术',   cost:3, type:'spell', dmg:84, towerDmg:25, spellRadius:RG(5.5), tornadoDur:1, glyph:'🌪️', c1:'#8fd0e8', c2:'#3a7a9a', desc:'半径 5.5 格、持续 1 秒：把空中和地面的单位往中心卷，总共 84 伤害（塔 25）' },
+  // —— 第十批：克隆法术 / 渔夫 / 哥布林小屋 / 哥布林牢笼（+ 牢笼里关着的哥布林硬汉）——
+  //   克隆：半径 3 格，复制范围内己方部队（复制体 1 血 1 盾，伤害与本尊一样，且不能再被克隆）
+  //   渔夫：870 / 194 / 1.3 秒 / 中等 / 近战:短 / 只打地面；3.5~7 格内用钩子把敌人拽到身边
+  //   哥布林小屋：1180 血 / 每 2.2 秒出 1 个投矛手 / 30 秒 / 被摧毁再出 1 个
+  //   哥布林牢笼：780 血 / 关 20 秒 / 被摧毁或到期时放出 1 个哥布林硬汉
+  clone:       { name:'克隆法术',   cost:3, type:'spell', spellRadius:RG(3), clone:true, glyph:'🔮', c1:'#c07ae0', c2:'#6a2a8a', desc:'半径 3 格：把范围内的己方部队复制一份，复制体只有 1 点生命 + 1 点护盾，但伤害与本尊相同' },
+  fisherman:   { name:'渔夫',       cost:3, type:'troop', count:1, hp:870, dmg:194, hitSpeed:1.3, speed:SP_MED, range:R_MELEE_S, radius:19, glyph:'🎣', c1:'#6aa8d8', c2:'#2a5a7a', targetsAir:false, hookMin:RG(3.5), hookMax:RG(7), desc:'3.5~7 格内的敌人会被钩子拽到身边，然后按 194/1.3 秒输出（DPS 149）' },
+  goblinHut:   { name:'哥布林小屋', cost:4, type:'building', hp:1180, dmg:0, hitSpeed:1, range:RG(0), radius:28, glyph:'🏚️', c1:'#9ab06a', c2:'#4f6a2a', lifetime:30, spawnEvery:2.2, spawnWhenEnemy:RG(5.5), spawnCard:'spearGoblins', spawnCount:1, deathSpawn:1, desc:'建筑：5.5 格内有敌人才产兵，每 2.2 秒出一个哥布林投矛手，持续 30 秒；被摧毁时再出 1 个' },
+  goblinCage:  { name:'哥布林牢笼', cost:4, type:'building', hp:780, dmg:0, hitSpeed:1, range:RG(0), radius:26, glyph:'⛓️', c1:'#9aa06a', c2:'#4f5a2a', lifetime:20, deathSpawn:1, spawnCard:'goblinBrawler', desc:'建筑：里面关着哥布林硬汉，20 秒到期或被摧毁时放出来' },
+  // 牢笼里关的兵，不进卡池
+  goblinBrawler:{ name:'哥布林硬汉', cost:4, type:'troop', hidden:true, count:1, hp:1100, dmg:200, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:20, glyph:'💪', c1:'#8fbf4a', c2:'#3f6a1c', targetsAir:false }
 };
 const CARD_POOL = Object.keys(CARDS).filter(id => !CARDS[id].hidden);   // 圣水小戈仑 / 泡泡这类分身不进牌库
 // 牌库展示顺序：先按圣水从低到高；同费时按「部队 → 建筑 → 法术」分组，
@@ -740,9 +761,18 @@ function sfxBanditDeploy(){ playChain(['sfx/bandit_deploy.ogg'], 0.78); }
 function sfxBanditDash(){ playChain(['sfx/bandit_dash.ogg'], 0.85); }
 function sfxBanditHit(){ playChain(['sfx/bandit_hit.ogg'], 0.85); }
 function sfxBanditVo(){ playChain(['sfx/bandit_vo.ogg'], 0.62); }
+// 皇家幽灵：部署（3.35s，素材偏响，音量压低）/ 第一次挥剑带人声 / 之后每刀
+function sfxGhostDeploy(){ playChain(['sfx/ghost_deploy.ogg'], 0.58); }
+function sfxGhostVo(){ playChain(['sfx/ghost_vo.ogg'], 0.62); }
+function sfxGhostAtk(){ playChain(['sfx/ghost_atk.ogg'], 0.72); }
 // 哥布林飞桶：飞行（drawback 素材 3.4s，落地后还会余一段，所以音量压到 0.55 让爆炸声盖住）+ 落地爆炸
 function sfxBarrelFly(){ playChain(['sfx/barrel_fly.ogg'], 0.55); }
 function sfxBarrelBoom(){ playChain(['sfx/barrel_boom.ogg'], 0.75); }
+// 渔夫：部署（两段拼接，和野猪骑士一样「落地 + 收尾」）/ 钩中 / 挥锚攻击
+//   素材都比野猪那组轻一点（rms 0.18/0.21 vs 0.26/0.28），音量相应提高
+function sfxFisherDeploy(){ playChain(['sfx/fisher_deploy.ogg', 'sfx/fisher_deploy_end.ogg'], 0.65); }
+function sfxFisherHook(){ playChain(['sfx/fisher_hook.ogg'], 0.80); }
+function sfxFisherAtk(){ playChain(['sfx/fisher_atk.ogg'], 0.70); }
 // 迷你皮卡登场：同样是两段，第二段紧贴第一段结尾（playChain 按采样精度排时间轴）
 function sfxMiniPekkaDeploy(){
   playChain(['sfx/minipekka_deploy.ogg', 'sfx/minipekka_deploy_end.ogg'], 0.58);
@@ -834,6 +864,13 @@ function sfxVines(){ beep(180,0.26,'triangle',0.055); setTimeout(()=>beep(260,0.
 function sfxQuake(){ beep(62,0.5,'sawtooth',0.085); setTimeout(()=>beep(48,0.42,'square',0.05), 90); setTimeout(()=>beep(120,0.22,'triangle',0.03), 210); }
 // 飓风：一阵上行的呼啸
 function sfxTornado(){ beep(240,0.35,'sine',0.045); setTimeout(()=>beep(360,0.30,'sine',0.040), 80); setTimeout(()=>beep(520,0.26,'sine',0.030), 170); }
+// 克隆：一串上行的水晶音
+function sfxClone(){ beep(520,0.16,'sine',0.035); setTimeout(()=>beep(700,0.16,'sine',0.032), 70); setTimeout(()=>beep(880,0.20,'sine',0.028), 140); }
+// 渔夫：甩钩 / 收线（合成音，没有现成素材）
+function sfxHookThrow(){ beep(420,0.12,'sawtooth',0.03); setTimeout(()=>beep(300,0.10,'sawtooth',0.022), 60); }
+function sfxHook(){ beep(180,0.16,'square',0.045); setTimeout(()=>beep(260,0.12,'triangle',0.03), 50); }
+// 锁定目标那一下（蓄钩开始）
+function sfxHookLock(){ beep(520,0.07,'square',0.028); setTimeout(()=>beep(660,0.07,'square',0.024), 70); }
 // 雷电法术：先一声炸雷，再补两下低频回响
 // 雷击：雷电法术的三道雷接续落下，后面的比第一道轻一点，避免三声叠在一起炸耳朵
 function sfxThunder(k){
@@ -1388,6 +1425,29 @@ function castTornado(c, team, x, y){
                  towerDps: (c.towerDmg != null ? c.towerDmg : c.dmg) / c.tornadoDur, tick: 0.2 });
 }
 
+// 克隆法术：把范围内的**己方部队**各复制一份。
+//   复制体只有 1 点生命 + 1 点护盾（护盾能替它挡掉第一下），伤害与本尊完全一样；
+//   复制体带 isClone 标记，不会被再次克隆（否则一个克隆法术能无限复制）。
+function castClone(c, team, x, y){
+  G.fx.push({ type:'ring', x, y, r0: 10, r1: c.spellRadius, t:0, life:0.5, color:'#d0a0f0' });
+  sfxClone();
+  let n = 0;
+  for (const e of G.ents.slice()){
+    if (e.dead || e.team !== team || e.isTower || e.isBuilding || e.isClone) continue;
+    if (dist(e, { x, y }) > c.spellRadius + e.radius * 0.6) continue;
+    const u = spawnUnit(e.cardId, team, e.x, e.y + 8, e.x < AW / 2 ? 0 : 1, { deploy: 0.12 });
+    if (!u) continue;
+    u.hp = 1; u.maxHp = 1;
+    // 护盾只在「本尊本来就有」时才给 1 点（骷髅守卫这类），普通兵克隆出来就是纯 1 血、没有盾
+    u.shield = (e.shield > 0) ? 1 : 0;
+    u.isClone = true;
+    u.cloak = false;                     // 克隆体不继承隐身，免得幽灵无限隐身
+    n++;
+    G.fx.push({ type:'ring', x:u.x, y:u.y, r0: 4, r1: 30, t:0, life:0.35, color:'#e8b8ff' });
+  }
+  if (n === 0) G.fx.push({ type:'banner', x, y: y - 30, t:0, life:0.9, text:'没有可克隆的单位', color:'#d0a0f0' });
+}
+
 // 定身：不能移动，但可以正常攻击（和皇室战争的「定身」一致）。
 //   飞行单位被拽下来：临时把 flying 关掉，定身结束时再恢复（wasFlying 记录原状态）。
 function applyRoot(e, dur){
@@ -1400,6 +1460,7 @@ function spellVolley(c, team, x, y, idx){
   if (c.vineDur){ castVines(c, team, x, y); return; }
   if (c.quakeDur){ castQuake(c, team, x, y); return; }
   if (c.tornadoDur){ castTornado(c, team, x, y); return; }
+  if (c.clone){ castClone(c, team, x, y); return; }
   const multi = (c.waves || 1) > 1;
   const hits = spellTargets(c, team, x, y, idx === 0);
 
@@ -1529,9 +1590,14 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     quakeT: 0,
     // 皇家幽灵：隐身（cloak）—— 敌人索敌 / 法术都选不到；出手后 visibleT 计时，到点重新隐身
     stealth: !!c.stealth, cloak: !!c.stealth, visibleT: 0,
+    isClone: false,        // 克隆体：不能再被克隆
+    hutIdle: false,        // 哥布林小屋：探测圈里没有敌人、暂停产兵中
     // 幻影刺客：bdash 突袭中（速度 ×5 且无敌），dashBonus 是落地那一下的伤害，dashCd 是冷却
     bdash: 0, dashBonus: 0, dashCd: 0, invuln: 0, atkSounded: false,
     dashRange: c.dashRange || 0, dashMin: c.dashMin || 0, dashDmg: c.dashDmg || 0,
+    // 渔夫的钩子：hookMin~hookMax 之间出手，0.28 秒后把目标拽到身边，6 秒冷却
+    hookMin: c.hookMin || 0, hookMax: c.hookMax || 0, hookCd: 0, hookT: 0, hookWind: 0, hookTarget: null,
+    hookVictim: null,      // 已经钩到手、正在打的那只；它死了才允许再钩
     // 护盾（骷髅守卫）：先扣护盾再扣血；狂暴：踩在狂暴区域里的剩余刷新时间
     shield: c.shield || 0, shieldMax: c.shield || 0, rageT: 0,
     // 固定进攻路（0=左 1=右）：召唤出来的兵用召唤者的路，避免「同一点出生的两个兵各走一边」
@@ -1550,7 +1616,9 @@ function doSpawn(cardId, team, x, y){
   if (c.type !== 'spell'){
     sfxDeploy();
     // 野猪骑士 / 迷你皮卡 / 皮卡超人 / 飞龙宝宝有专属登场音（前三家两段连在一起），叠在通用部署音上
-    if (cardId === 'bandit') sfxBanditDeploy();
+    if (cardId === 'royalGhost') sfxGhostDeploy();
+    else if (cardId === 'fisherman') sfxFisherDeploy();
+    else if (cardId === 'bandit') sfxBanditDeploy();
     else if (cardId === 'giant') sfxGiantDeploy();
     else if (cardId === 'hogRider') sfxHogDeploy();
     else if (cardId === 'miniPekka') sfxMiniPekkaDeploy();
@@ -1602,7 +1670,8 @@ function doSpawn(cardId, team, x, y){
       isBuilding: true, decay: c.hp / c.lifetime, spawnT: DEPLOY_TIME, anim: 0, speed: 0,
       kbX: 0, kbY: 0, kbT: 0,
       // 钻地建筑（电磁塔）：emerge 0=埋在地下 1=完全升起；hidden 期间免疫法术
-      burrow: !!c.burrow, emerge: c.burrow ? 0 : 1, hidden: !!c.burrow, wasUp: false
+      burrow: !!c.burrow, emerge: c.burrow ? 0 : 1, hidden: !!c.burrow, wasUp: false,
+      hutIdle: false,        // 哥布林小屋：探测圈里没敌人、暂停产兵中
     });
     G.fx.push({ type:'ring', x, y, r0: 4, r1: 44, t:0, life: DEPLOY_TIME, color:'#ffffff' });
     return;
@@ -1655,7 +1724,14 @@ function damage(e, amt, from, silent){
   // 烈焰精灵扑击途中是腾空的：这段时间不可被选中，
   // 否则它一定会在落地前被近战先手打死，自爆机制等于废掉
   if (e.dash > 0) return;
-  if (e.invuln > 0) return;              // 幻影刺客突袭瞬间无敌
+  if (e.invuln > 0){
+    // 幻影刺客突袭瞬间无敌：冒个粉圈 + 飘「免疫」，让玩家看得出这一下被吃掉了
+    if (!silent){
+      G.fx.push({ type:'ring', x:e.x, y:e.y, r0: e.radius * 0.6, r1: e.radius * 2.3, t:0, life:0.26, color:'#ff9ad0' });
+      G.fx.push({ type:'banner', x:e.x, y:e.y - e.radius - 14, t:0, life:0.55, text:'免疫', color:'#ff9ad0' });
+    }
+    return;
+  }
   // 护盾（骷髅守卫）：和皇室战争一致 —— 不管这一下有多疼，都完整挡下来，然后碎掉。
   // 所以哪怕盾只剩 1 点，也能吃掉一发火球 / 皮卡重击，血量一点不掉。
   if (e.shield > 0 && amt > 0){
@@ -1865,7 +1941,12 @@ function doAttack(u, t){
   // 皇家幽灵：一出手就显形，2 秒不再出手就重新隐身
   if (u.cloak){ u.cloak = false; u.visibleT = 2; }
   // 野猪骑士 / 迷你皮卡 / 皮卡超人 / 瓦基里武神 / 飞龙宝宝每一锤都有专属音效（远程单位在下面统一生成弹道特效）
-  if (u.cardId === 'bandit'){
+  if (u.cardId === 'royalGhost'){
+    if (!u.atkSounded){ u.atkSounded = true; sfxGhostVo(); }   // 第一次出手（带人声）
+    else sfxGhostAtk();                                        // 之后每一刀
+  }
+  else if (u.cardId === 'fisherman') sfxFisherAtk();
+  else if (u.cardId === 'bandit'){
     if (!u.atkSounded){ u.atkSounded = true; sfxBanditVo(); }   // 第一次出手
     else sfxBanditHit();                                        // 之后的每一刀
   }
@@ -2322,6 +2403,20 @@ function pushOutOfTowers(e){
   e.y = clamp(e.y, e.radius + 4, AH - e.radius - 4);
 }
 
+// 渔夫的钩子找目标：3.5~7 格内**最近的**敌方地面单位 / 建筑（跳过空中、隐身）。
+//   和「当前攻击目标」无关 —— 他在拆塔时，路过的兵照样会被钩。
+function findHookTarget(e){
+  let cand = null, best = Infinity;
+  for (const o of G.ents){
+    if (o.dead || o.team === e.team) continue;
+    if (o.flying || o.cloak) continue;        // 塔和建筑也能钩（钩到建筑时是自己飞过去）
+    const d = dist(e, o);
+    if (d < e.hookMin || d > e.hookMax) continue;
+    if (d < best){ best = d; cand = o; }
+  }
+  return cand;
+}
+
 function updateEnt(e, dt){
   if (e.dead) return;
   pushOutOfTowers(e);          // 投放点压在塔上 / 被击退进塔：先推出来，避免卡在塔身里
@@ -2347,10 +2442,17 @@ function updateEnt(e, dt){
   if (e.quakeT > 0) e.quakeT -= dt;          // 地震减速
   if (e.invuln > 0) e.invuln -= dt;          // 幻影刺客突袭无敌
   if (e.dashCd > 0) e.dashCd -= dt;          // 突袭冷却
-  // 皇家幽灵：出手后显形 2 秒，到点重新隐身
-  if (e.visibleT > 0){
-    e.visibleT -= dt;
-    if (e.visibleT <= 0 && e.stealth) e.cloak = true;
+  // 皇家幽灵：出手就显形，**只要还在交战就一直显形**，脱战 2 秒才重新隐身。
+  //   （原来只按「上次出手 +2 秒」算，攻速 1.8 秒、首击还要 0.7 秒前摇，
+  //     两刀之间可能空出 2 秒以上，于是打着打着就隐身了。）
+  if (e.stealth){
+    const foe = e.target;
+    if (!e.cloak && foe && !foe.dead && dist(e, foe) <= e.range + foe.radius + 4)
+      e.visibleT = Math.max(e.visibleT, 2);        // 射程内有活目标 = 还在打，刷新显形时间
+    if (e.visibleT > 0){
+      e.visibleT -= dt;
+      if (e.visibleT <= 0) e.cloak = true;
+    }
   }
 
   // 攻城炸弹人：落地时喊一声就够了（整张卡只喊一次，不循环）
@@ -2390,10 +2492,24 @@ function updateEnt(e, dt){
       G.fx.push({ type:'ring', x:e.x, y:e.y + fwd * e.radius * 0.6, r0: 5, r1: e.radius * 1.9,
                   t:0, life:0.30, color:'#cfd8ff' });
     };
-    if (e.summonT == null){ e.summonT = bc.spawnEvery; doSummon(); }   // 落地那一下立刻出
-    else {
+    // 哥布林小屋这类「有人来才产兵」的建筑：探测范围内没有敌人就**暂停计时**（进度保留），
+    //   敌人一进圈就立刻把攒着的那一个放出来，之后按 spawnEvery 继续。
+    let active = true;
+    if (bc.spawnWhenEnemy){
+      active = false;
+      for (const o of G.ents){
+        if (o.dead || o.team === e.team || o.isTower || o.cloak) continue;
+        if (dist(o, e) <= bc.spawnWhenEnemy + o.radius * 0.5){ active = true; break; }
+      }
+      e.hutIdle = !active;
+    }
+    if (e.summonT == null){
+      if (bc.spawnWhenEnemy) e.summonT = 0;            // 有敌人来了就立刻出第一个
+      else { e.summonT = bc.spawnEvery; doSummon(); }   // 墓碑：落地那一下立刻出
+    }
+    if (active){
       e.summonT -= dt;
-      if (e.summonT <= 0){ e.summonT += bc.spawnEvery; doSummon(); }
+      if (e.summonT <= 0){ e.summonT = bc.spawnEvery; doSummon(); }
     }
   }
 
@@ -2495,6 +2611,65 @@ function updateEnt(e, dt){
   const d = dist(e, t);
   const reach = e.range + t.radius;
 
+  // 渔夫：3.5~7 格内的地面敌人会被钩子拽到身边（先飞 0.28 秒，再瞬移过来）
+  if (e.cardId === 'fisherman' && e.hookMax > 0 && !(e.spawnT > 0)){
+    if (e.hookCd > 0) e.hookCd -= dt;
+    // 蓄钩：锁定目标后要站定 1.3 秒才甩出去（这段时间目标跑出范围也照样甩，钩的是锁定点）
+    if (e.hookWind > 0){
+      e.hookWind -= dt;
+      if (e.hookWind <= 0){
+        const o = e.hookTarget;
+        if (o && !o.dead){
+          e.hookT = 0.28;
+          G.fx.push({ type:'shot', kind:'spear', x0: e.x, y0: e.y, x1: o.x, y1: o.y,
+                      t:0, life: 0.26, color:'#9fd8f0', w: 3.4, arc: 0, seed: 0 });
+          sfxHookThrow();
+        } else {
+          e.hookTarget = null;
+        }
+      }
+    }
+    else if (e.hookT > 0){
+      e.hookT -= dt;
+      if (e.hookT <= 0 && e.hookTarget && !e.hookTarget.dead){
+        const o = e.hookTarget;
+        if (o.isTower || o.isBuilding){
+          // 钩建筑：建筑拽不动，改成把自己拉过去，停在建筑外沿
+          const ang = Math.atan2(e.y - o.y, e.x - o.x);
+          const dd = o.radius + e.radius + 12;
+          e.x = clamp(o.x + Math.cos(ang) * dd, 34, AW - 34);
+          e.y = clamp(o.y + Math.sin(ang) * dd, 34, AH - 34);
+          G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 6, r1: 32, t:0, life:0.30, color:'#9fd8f0' });
+        } else {
+          // 钩单位：把敌人拽到身边
+          const ang = Math.atan2(o.y - e.y, o.x - e.x);
+          const dd = e.radius + o.radius + 10;
+          o.x = clamp(e.x + Math.cos(ang) * dd, 34, AW - 34);
+          o.y = clamp(e.y + Math.sin(ang) * dd, 34, AH - 34);
+          G.fx.push({ type:'ring', x:o.x, y:o.y, r0: 6, r1: 32, t:0, life:0.30, color:'#9fd8f0' });
+          // 钩过来的这只先记账：**打死它之前不再甩钩**，同时把攻击目标切到它身上
+          e.hookVictim = o;
+          e.target = o;
+        }
+        sfxFisherHook();
+      }
+      if (e.hookT <= 0) e.hookTarget = null;
+    } else if ((!e.hookVictim || e.hookVictim.dead) && (e.hookCd <= 0 || e.hookVictim)){
+      // 先把手上的那只打死，才轮到下一个：它还没死就一直不甩钩（哪怕冷却早好了）；
+      //   它一死就无视剩余冷却，直接钩下一个。
+      //   钩的对象不一定是「当前攻击目标」：他在拆塔时，路过的敌方地面兵照样会被钩
+      const cand = findHookTarget(e);
+      if (cand){
+        e.hookTarget = cand;
+        e.hookWind = 1.3;            // 蓄钩延迟
+        e.hookCd = 6;                // 从锁定时就开始转冷却
+        sfxHookLock();
+        G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 8, r1: 30, t:0, life:0.30, color:'#9fd8f0' });
+      }
+    }
+  }
+
+
   if (d <= reach){
     // 首次出手：刚进入射程（或刚换目标）先蓄力 0.7 秒，才打出第一下。
     //   计时从「真正能出手」这一刻开始算 —— 单位一落地往往就锁定了 330px 外的塔，
@@ -2531,7 +2706,14 @@ function updateEnt(e, dt){
     if (e.bdash > 0){
       e.bdash -= dt;
       e.invuln = Math.max(e.invuln, 0.04);
-    } else if (e.dashCd <= 0 && t && !t.isTower && !t.isBuilding && !t.flying){
+      // 冲刺拖影：每 0.04 秒留一撮粉色残影，看得出她是一路冲过去的
+      e.trailT = (e.trailT || 0) - dt;
+      if (e.trailT <= 0){
+        e.trailT = 0.04;
+        G.fx.push({ type:'spark', x:e.x, y:e.y - e.radius * 0.2, t:0, life:0.26,
+                    color:'#ff9ad0', r: e.radius * 0.9, n: 3 });
+      }
+    } else if (e.dashCd <= 0 && t && !t.dead && !t.flying){   // 塔和建筑也照冲（皇室战争里她会突袭塔）
       const d = dist(e, t);
       if (d >= e.dashMin && d <= e.dashRange){
         e.bdash = Math.min(0.5, Math.max(0.12, d / (e.speed * 5)));
@@ -2544,8 +2726,8 @@ function updateEnt(e, dt){
     }
   }
 
-  // 移动（定身期间原地不动，但仍然可以攻击）
-  if (e.isTower || e.isBuilding || e.spawnT > 0 || e.rootT > 0) return;
+  // 移动（定身 / 渔夫蓄钩期间原地不动，但仍然可以攻击）
+  if (e.isTower || e.isBuilding || e.spawnT > 0 || e.rootT > 0 || e.hookWind > 0) return;
 
   // 突袭中：直线冲向目标（不绕桥、不按寻路走，否则会顺着大路冲过头）
   if (e.bdash > 0 && t && !t.dead){
@@ -3727,6 +3909,34 @@ function drawUnit(u){
   ctx.fill();
   ctx.restore();
 
+  // 渔夫蓄钩中：一条虚线指向锁定的目标 + 脚下逐渐收紧的蓄力圈
+  if (u.cardId === 'fisherman' && u.hookWind > 0 && u.hookTarget && !u.hookTarget.dead){
+    const o = u.hookTarget;
+    const pr = clamp(1 - u.hookWind / 1.3, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = 0.30 + 0.35 * pr;
+    ctx.strokeStyle = '#9fd8f0';
+    ctx.lineWidth = 2.2;
+    ctx.setLineDash([6, 8]);
+    ctx.beginPath(); ctx.moveTo(u.x, by); ctx.lineTo(o.x, o.y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.55 + 0.35 * pr;
+    ctx.beginPath(); ctx.arc(u.x, u.y + r * 0.6, r * (1.5 - pr * 0.7), 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // 哥布林小屋「待机」：探测圈里没敌人时不产兵，画一圈很淡的虚线提示玩家它在等谁进来
+  if (u.hutIdle && c.spawnWhenEnemy){
+    ctx.save();
+    ctx.globalAlpha = 0.22 + 0.08 * Math.sin(G.t * 2.2);
+    ctx.strokeStyle = '#e8f5b0';
+    ctx.lineWidth = 2.6;
+    ctx.setLineDash([7, 11]);
+    ctx.beginPath(); ctx.arc(u.x, u.y, c.spawnWhenEnemy, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   // 部署时间内：由小放大 + 由淡转实，1 秒后完全落地
   const dp = spawning ? clamp(1 - u.spawnT / DEPLOY_TIME, 0, 1) : 1;
   ctx.save();
@@ -4368,6 +4578,10 @@ const elixirNum = document.getElementById('elixirNum');
 const elixirMultEl = document.getElementById('elixirMult');
 const timerEl = document.getElementById('timer');
 const toastEl = document.getElementById('toast');
+const cdWrap = document.getElementById('countdown');
+const cdNumEl = document.getElementById('cdNum');
+const cdCapEl = document.getElementById('cdCap');
+let lastCdShown = null;          // 上一帧显示的数字，变了才重放动画 / 响一声
 let handSig = '';
 
 function refreshHand(){
@@ -4412,6 +4626,25 @@ function refreshHand(){
   const t = Math.max(0, Math.ceil(G.timeLeft));
   timerEl.textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
   timerEl.classList.toggle('hot', G.timeLeft <= 60);
+
+  // 最后 10 秒：屏幕正中央倒数 10 → 1，第一秒带一行「还剩十秒」
+  const cdLeft = Math.ceil(G.timeLeft);
+  if (G.running && G.timeLeft > 0 && cdLeft <= 10){
+    cdWrap.classList.add('on');
+    if (cdLeft !== lastCdShown){
+      lastCdShown = cdLeft;
+      cdNumEl.textContent = cdLeft;
+      cdCapEl.style.display = cdLeft >= 10 ? '' : 'none';
+      cdNumEl.classList.remove('pop');
+      void cdNumEl.offsetWidth;                 // 强制重排，动画才会重播
+      cdNumEl.classList.add('pop');
+      beep(cdLeft <= 3 ? 900 : 620, 0.09, 'square', cdLeft <= 3 ? 0.05 : 0.035);
+    }
+  } else if (lastCdShown !== null){
+    lastCdShown = null;
+    cdWrap.classList.remove('on');
+  }
+
   document.getElementById('plCrowns').textContent = '👑 ' + G.player.crowns;
   document.getElementById('aiCrowns').textContent = '👑 ' + G.ai.crowns;
 }
