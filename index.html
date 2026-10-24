@@ -590,7 +590,26 @@ const CARDS = {
   goblinHut:   { name:'哥布林小屋', cost:4, type:'building', hp:1180, dmg:0, hitSpeed:1, range:RG(0), radius:28, glyph:'🏚️', c1:'#9ab06a', c2:'#4f6a2a', lifetime:30, spawnEvery:2.2, spawnWhenEnemy:RG(5.5), spawnCard:'spearGoblins', spawnCount:1, deathSpawn:1, desc:'建筑：5.5 格内有敌人才产兵，每 2.2 秒出一个哥布林投矛手，持续 30 秒；被摧毁时再出 1 个' },
   goblinCage:  { name:'哥布林牢笼', cost:4, type:'building', hp:780, dmg:0, hitSpeed:1, range:RG(0), radius:26, glyph:'⛓️', c1:'#9aa06a', c2:'#4f5a2a', lifetime:20, deathSpawn:1, spawnCard:'goblinBrawler', desc:'建筑：里面关着哥布林硬汉，20 秒到期或被摧毁时放出来' },
   // 牢笼里关的兵，不进卡池
-  goblinBrawler:{ name:'哥布林硬汉', cost:4, type:'troop', hidden:true, count:1, hp:1100, dmg:200, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:20, glyph:'💪', c1:'#8fbf4a', c2:'#3f6a1c', targetsAir:false }
+  goblinBrawler:{ name:'哥布林硬汉', cost:4, type:'troop', hidden:true, count:1, hp:1100, dmg:200, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:20, glyph:'💪', c1:'#8fbf4a', c2:'#3f6a1c', targetsAir:false },
+  // —— 第十一批：野蛮人攻城锤 / 骷髅飞龙 / 炸弹塔 / 迫击炮 ——
+  //   攻城锤：967 血 / 286（冲刺 573）/ 中等→冲刺极快 / 近战:短 / 只打建筑；
+  //            助跑 3.5 格进入冲刺，撞到建筑或被击毁都会散成 2 个野蛮人
+  //   骷髅飞龙：560 / 151 / 2 秒 / 快 / 3.5 格 / 空地通吃 / 2 只 / 范围伤害 / 飞行
+  //   炸弹塔：1356 血 / 222 / 1.8 秒 / 6 格 / 只打地面 / 30 秒 / 亡语炸 222
+  //   迫击炮：1369 血 / 266 / 4.7 秒 / 11.5 格 / 盲区 3.5 格 / 30 秒 / 部署 3.5 秒 / 溅射 2 格
+  battleRam:   { name:'野蛮人攻城锤', cost:4, type:'troop', count:1, hp:967, dmg:286, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:22, glyph:'🔨', c1:'#d8a45a', c2:'#8a5a1c', targetsAir:false, buildingsOnly:true, chargeDist:RG(3.5), chargeDmg:573, chargeSpeed:SP_VFAST, breaksOnHit:true, deathSpawn:2, spawnCard:'barbarians', desc:'只打建筑：助跑 3.5 格后进入冲刺（极快），撞上那一下 573 伤害，然后散成 2 个野蛮人' },
+  skeletonDragons:{ name:'骷髅飞龙', cost:4, type:'troop', count:2, hp:560, dmg:151, hitSpeed:2, speed:SP_FAST, range:RG(3.5), radius:20, glyph:'🩻', c1:'#a8d8e8', c2:'#4a7a9a', targetsAir:true, flying:true, splash:RG(1.2), shot:'flame', desc:'2 只飞行单位，范围伤害，空中地面都能打（DPS 76）' },
+  bombTower:   { name:'炸弹塔', cost:4, type:'building', hp:1356, dmg:222, hitSpeed:1.8, range:RG(6), radius:28, glyph:'🏯', c1:'#8a8a96', c2:'#4a4a55', targetsAir:false, lifetime:30, splash:RG(1.5), shot:'bomb', deathBlast:RG(1.5), deathDmg:222, desc:'建筑，只打地面、范围伤害；30 秒到期或被摧毁时炸一圈 222（DPS 123）' },
+  // —— 第十二批：飞行器 / 亡灵巨人 / 战斗天使 / 冰冻法术 ——
+  //   飞行器：614 / 179 / 1.1 秒 / 快 / 6 格 / 空地通吃 / 飞行
+  //   亡灵巨人：1817 / 153 / 1.7 秒 / 中等 / 4 格 / 只打建筑
+  //   战斗天使：1920 / 268 / 2 秒 / 中等 / 近战:长 / 只打地面；登场治疗 200，每次攻击治疗 100，半径 3 格
+  //   冰冻法术：半径 3 / 148 伤害（塔 38）/ 冰冻 3.5 秒
+  flyingMachine:{ name:'飞行器',     cost:4, type:'troop', count:1, hp:614, dmg:179, hitSpeed:1.1, speed:SP_FAST, range:RG(6), radius:20, glyph:'🛩️', c1:'#d8b46a', c2:'#8a6a2a', targetsAir:true, flying:true, shot:'bullet', desc:'飞行单位，6 格射程，空中地面都能打（DPS 163）' },
+  giantSkeleton:{ name:'亡灵巨人',   cost:4, type:'troop', count:1, hp:1817, dmg:153, hitSpeed:1.7, speed:SP_MED, range:RG(4), radius:26, glyph:'🧟', c1:'#b8c8a8', c2:'#5a6a4a', targetsAir:false, flying:true, buildingsOnly:true, desc:'飞行单位，只打建筑：4 格射程，飘过河直接压塔（DPS 90）' },
+  battleHealer: { name:'战斗天使',   cost:4, type:'troop', count:1, hp:1920, dmg:268, hitSpeed:2, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'👼', c1:'#f0d8a8', c2:'#b08a4a', targetsAir:false, spawnHeal:200, healOnHit:100, healRadius:RG(3), desc:'登场治疗周围友军 200；每次攻击治疗 100（半径 3 格），只打地面（DPS 134）' },
+  freeze:       { name:'冰冻法术',   cost:4, type:'spell', dmg:148, towerDmg:38, spellRadius:RG(3), stun:3.5, freezeSpell:true, glyph:'🌨️', c1:'#a8e4ff', c2:'#4a9ac8', desc:'半径 3 格：范围内所有敌人（含空中）冰冻 3.5 秒，并造成 148 伤害（塔 38）' },
+  mortar:      { name:'迫击炮', cost:4, type:'building', hp:1369, dmg:266, hitSpeed:4.7, range:RG(11.5), minRange:RG(3.5), radius:28, glyph:'🎇', c1:'#9aa06a', c2:'#4f5a2a', targetsAir:false, lifetime:30, deploy:3.5, splash:RG(2), shot:'shell', shotNoHome:true, desc:'建筑：射程 11.5 格、盲区 3.5 格（贴身打不到），炮弹溅射 2 格；部署要 3.5 秒（DPS 57）' }
 };
 const CARD_POOL = Object.keys(CARDS).filter(id => !CARDS[id].hidden);   // 圣水小戈仑 / 泡泡这类分身不进牌库
 // 牌库展示顺序：先按圣水从低到高；同费时按「部队 → 建筑 → 法术」分组，
@@ -765,6 +784,15 @@ function sfxBanditVo(){ playChain(['sfx/bandit_vo.ogg'], 0.62); }
 function sfxGhostDeploy(){ playChain(['sfx/ghost_deploy.ogg'], 0.58); }
 function sfxGhostVo(){ playChain(['sfx/ghost_vo.ogg'], 0.62); }
 function sfxGhostAtk(){ playChain(['sfx/ghost_atk.ogg'], 0.72); }
+// 骑士：部署 / 攻击各有两段素材，每次随机挑一个（音量按素材响度补偿，两段听感一样大）
+function sfxKnightDeploy(){
+  const a = Math.random() < 0.5;
+  playChain([a ? 'sfx/knight_deploy_a.ogg' : 'sfx/knight_deploy_b.ogg'], a ? 0.65 : 0.58);
+}
+function sfxKnightAtk(){
+  const a = Math.random() < 0.5;
+  playChain([a ? 'sfx/knight_atk_a.ogg' : 'sfx/knight_atk_b.ogg'], a ? 0.58 : 0.72);
+}
 // 哥布林飞桶：飞行（drawback 素材 3.4s，落地后还会余一段，所以音量压到 0.55 让爆炸声盖住）+ 落地爆炸
 function sfxBarrelFly(){ playChain(['sfx/barrel_fly.ogg'], 0.55); }
 function sfxBarrelBoom(){ playChain(['sfx/barrel_boom.ogg'], 0.75); }
@@ -1197,6 +1225,38 @@ function canDeploy(team, x, y, card){
   }
 }
 
+// 治疗：给半径内的己方部队回血（塔和建筑不回，满血的不飘字）
+function healAround(u, amt, r){
+  if (!amt || !r) return 0;
+  let n = 0;
+  for (const o of G.ents){
+    if (o.dead || o.team !== u.team || o.isTower || o.isBuilding) continue;
+    if (dist(o, u) > r + o.radius * 0.5) continue;
+    if (o.hp >= o.maxHp) continue;
+    o.hp = Math.min(o.maxHp, o.hp + amt);
+    n++;
+    G.fx.push({ type:'banner', x:o.x, y:o.y - o.radius - 12, t:0, life:0.7, text:'+' + amt, color:'#9dffc4' });
+  }
+  if (n) G.fx.push({ type:'ring', x:u.x, y:u.y, r0: 8, r1: r, t:0, life:0.42, color:'#9dffc4' });
+  return n;
+}
+
+// 登场治疗（战斗天使）：放下去的同一瞬间给周围友军回血
+function spawnHealAt(c, team, x, y){
+  const r = c.healRadius || RG(3);
+  let n = 0;
+  for (const o of G.ents){
+    if (o.dead || o.team !== team || o.isTower || o.isBuilding) continue;
+    if (dist(o, { x, y }) > r + o.radius * 0.5) continue;
+    if (o.hp >= o.maxHp) continue;
+    o.hp = Math.min(o.maxHp, o.hp + c.spawnHeal);
+    n++;
+    G.fx.push({ type:'banner', x:o.x, y:o.y - o.radius - 12, t:0, life:0.7, text:'+' + c.spawnHeal, color:'#9dffc4' });
+  }
+  G.fx.push({ type:'ring', x, y, r0: 10, r1: r, t:0, life:0.5, color:'#9dffc4' });
+  return n;
+}
+
 // 登场伤害（寒冰法师）：卡牌**落地的同一瞬间**就结算，不等 1 秒部署动画。
 //   只打敌方兵（不打塔、不打建筑），范围 + 减速。
 function spawnBlastAt(c, team, x, y){
@@ -1448,6 +1508,28 @@ function castClone(c, team, x, y){
   if (n === 0) G.fx.push({ type:'banner', x, y: y - 30, t:0, life:0.9, text:'没有可克隆的单位', color:'#d0a0f0' });
 }
 
+// 冰冻法术：落点瞬间把范围内**所有**敌人（含空中）冻住 3.5 秒，同时造成伤害。
+//   机制上就是长眩晕（stun），frozenT 只负责画那层冰壳。
+function castFreeze(c, team, x, y){
+  const hits = spellTargets(c, team, x, y, true);
+  G.fx.push({ type:'ring',  x, y, r0: 12, r1: c.spellRadius, t:0, life:0.55, color:'#dff4ff' });
+  G.fx.push({ type:'spell', x, y, r: c.spellRadius, a:0.55, t:0, life:0.50, color:'#a8e4ff' });
+  for (let i = 0; i < 12; i++){                       // 四散的冰晶
+    const a = Math.random() * Math.PI * 2, rr = c.spellRadius * (0.25 + Math.random() * 0.7);
+    G.fx.push({ type:'spark', x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr, t:0,
+                life: 0.35 + Math.random() * 0.2, color:'#dff4ff', r: 3 + Math.random() * 3, n: 2 });
+  }
+  sfxFreeze();
+  const dur = c.stun || 3.5;
+  for (const e of hits){
+    if (e.dead) continue;
+    const amt = (e.isTower && c.towerDmg != null) ? c.towerDmg : c.dmg;
+    damage(e, amt, null, true);
+    applyStun(e, dur);
+    e.frozenT = Math.max(e.frozenT || 0, dur);
+  }
+}
+
 // 定身：不能移动，但可以正常攻击（和皇室战争的「定身」一致）。
 //   飞行单位被拽下来：临时把 flying 关掉，定身结束时再恢复（wasFlying 记录原状态）。
 function applyRoot(e, dur){
@@ -1461,6 +1543,7 @@ function spellVolley(c, team, x, y, idx){
   if (c.quakeDur){ castQuake(c, team, x, y); return; }
   if (c.tornadoDur){ castTornado(c, team, x, y); return; }
   if (c.clone){ castClone(c, team, x, y); return; }
+  if (c.freezeSpell){ castFreeze(c, team, x, y); return; }
   const multi = (c.waves || 1) > 1;
   const hits = spellTargets(c, team, x, y, idx === 0);
 
@@ -1575,6 +1658,8 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     splash: c.splash || 0, spin: !!c.spin, flying: !!c.flying,
     // 远程单位的弹道外观（弓箭 / 子弹 / 法术球 / 炮弹 / 电弧 / 长矛）
     shot: c.shot || null,
+    // 迫击炮：炮弹打的是「开炮时瞄的那个点」，不追踪目标 —— 目标走开就打空
+    shotNoHome: !!c.shotNoHome,
     // 自爆单位（精灵系 / 攻城炸弹人）：贴到目标就炸，blast 是爆炸半径
     suicide: !!c.suicide, blast: c.blast || 0, dash: 0, dashT: 0,
     // 精灵的附加效果：冰冻时长 / 治疗量+持续时间 / 电弧连锁上限
@@ -1595,6 +1680,16 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     // 幻影刺客：bdash 突袭中（速度 ×5 且无敌），dashBonus 是落地那一下的伤害，dashCd 是冷却
     bdash: 0, dashBonus: 0, dashCd: 0, invuln: 0, atkSounded: false,
     dashRange: c.dashRange || 0, dashMin: c.dashMin || 0, dashDmg: c.dashDmg || 0,
+    // 迫击炮这类「有盲区」的单位：比 minRange 更近的目标打不到
+    minRange: c.minRange || 0,
+    // 野蛮人攻城锤：走满 chargeDist 进入冲刺（速度换成 chargeSpeed），撞上去那一下用 chargeDmg
+    // 战斗天使：登场治疗 spawnHeal、每次攻击治疗 healOnHit（半径 healRadius）
+    spawnHeal: c.spawnHeal || 0, healOnHit: c.healOnHit || 0, healRadius: c.healRadius || 0,
+    // 冰冻法术的视觉：冻住期间盖一层冰壳（机制上还是走 stun）
+    frozenT: 0,
+    chargeDist: c.chargeDist || 0, chargeDmg: c.chargeDmg || 0, chargeSpeed: c.chargeSpeed || 0,
+    charged: false, chargeMoved: 0, chargeFxT: 0,
+    breaksOnHit: !!c.breaksOnHit,       // 撞到目标就散架（攻城锤）
     // 渔夫的钩子：hookMin~hookMax 之间出手，0.28 秒后把目标拽到身边，6 秒冷却
     hookMin: c.hookMin || 0, hookMax: c.hookMax || 0, hookCd: 0, hookT: 0, hookWind: 0, hookTarget: null,
     hookVictim: null,      // 已经钩到手、正在打的那只；它死了才允许再钩
@@ -1616,7 +1711,8 @@ function doSpawn(cardId, team, x, y){
   if (c.type !== 'spell'){
     sfxDeploy();
     // 野猪骑士 / 迷你皮卡 / 皮卡超人 / 飞龙宝宝有专属登场音（前三家两段连在一起），叠在通用部署音上
-    if (cardId === 'royalGhost') sfxGhostDeploy();
+    if (cardId === 'knight') sfxKnightDeploy();
+    else if (cardId === 'royalGhost') sfxGhostDeploy();
     else if (cardId === 'fisherman') sfxFisherDeploy();
     else if (cardId === 'bandit') sfxBanditDeploy();
     else if (cardId === 'giant') sfxGiantDeploy();
@@ -1665,15 +1761,19 @@ function doSpawn(cardId, team, x, y){
       id: uid++, cardId, team, x, y,
       radius: c.radius, hp: c.hp, maxHp: c.hp, dmg: c.dmg, hitSpeed: c.hitSpeed,
       range: c.range, targetsAir: !!c.targetsAir, buildingsOnly: false,
-      splash: 0, flying: false, cool: 0.5, rt: 0, target: null, dead: false, slowT: 0,
+      splash: c.splash || 0, flying: false, cool: 0.5, rt: 0, target: null, dead: false, slowT: 0,
+      minRange: c.minRange || 0,                 // 迫击炮的盲区
       shot: c.shot || null,
-      isBuilding: true, decay: c.hp / c.lifetime, spawnT: DEPLOY_TIME, anim: 0, speed: 0,
+      shotNoHome: !!c.shotNoHome,                // 迫击炮：炮弹不追踪
+      isBuilding: true, decay: c.hp / c.lifetime,
+      spawnT: c.deploy || DEPLOY_TIME,           // 迫击炮部署要 3.5 秒
+      anim: 0, speed: 0,
       kbX: 0, kbY: 0, kbT: 0,
       // 钻地建筑（电磁塔）：emerge 0=埋在地下 1=完全升起；hidden 期间免疫法术
       burrow: !!c.burrow, emerge: c.burrow ? 0 : 1, hidden: !!c.burrow, wasUp: false,
       hutIdle: false,        // 哥布林小屋：探测圈里没敌人、暂停产兵中
     });
-    G.fx.push({ type:'ring', x, y, r0: 4, r1: 44, t:0, life: DEPLOY_TIME, color:'#ffffff' });
+    G.fx.push({ type:'ring', x, y, r0: 4, r1: 44, t:0, life: c.deploy || DEPLOY_TIME, color:'#ffffff' });
     return;
   }
 
@@ -1705,6 +1805,7 @@ function doSpawn(cardId, team, x, y){
   const pts = formation(c.count || 1, x, y, team, c.form);
   for (const p of pts) spawnUnit(cardId, team, p.x, p.y);
   if (c.spawnDmg) spawnBlastAt(c, team, x, y);      // 寒冰法师：放下去的同时就炸
+  if (c.spawnHeal) spawnHealAt(c, team, x, y);      // 战斗天使：放下去的同时给周围友军回血
   G.fx.push({ type:'ring', x, y, r0: 4, r1: 40, t:0, life: DEPLOY_TIME, color:'#ffffff' });
 }
 
@@ -1868,7 +1969,9 @@ function findTarget(u){
     } else {
       if (e.flying && !u.targetsAir) continue;
     }
-    const d = Math.max(0, dist(e, u) - e.radius);
+    const edge = Math.max(0, dist(e, u) - e.radius - (u.radius || 0));   // 边到边距离
+    if (u.minRange && edge < u.minRange) continue;        // 迫击炮：盲区内的目标打不到
+    const d = edge;
     if (d > aggro) continue;
     const s = d + ((e.isTower || e.isBuilding) ? 70 : 0);
     if (s < bs){ bs = s; best = e; }
@@ -1909,7 +2012,10 @@ const SHOT_DEF = {
   bomb:       { speed: 600,  color: '#2b2b33', w: 8.0, arc: 30 },
   cannonball: { speed: 760,  color: '#4a4a55', w: 7.0, arc: 12 },
   zap:        { speed: 3000, color: '#bfe0ff', w: 3.0 },
-  dart:       { speed: 1150, color: '#c9ff8e', w: 3.0 }
+  dart:       { speed: 1150, color: '#c9ff8e', w: 3.0 },
+  // 迫击炮弹：皇室战争里标注 300 单位 ≈ 3 格/秒。11.5 格射程要飞 3.8 秒，
+  //   所以 maxLife 放到 6 秒（普通弹道被压在 0.17 秒是为了手感，迫击炮要的就是慢）
+  shell:      { speed: 3 * TILE, color: '#2b2b33', w: 9.5, arc: 40, arcPerPx: 0.10, arcMax: 110, maxLife: 6 }
 };
 
 function shotOrigin(u){
@@ -1931,7 +2037,8 @@ function spawnShot(u, t){
   G.fx.push({
     type:'shot', kind, x0: o.x, y0: o.y, x1: t.x, y1: t.y,
     t: 0, life,
-    color: def.color, w: def.w, arc: def.arc || 0,
+    color: def.color, w: def.w,
+    arc: def.arc ? Math.min(def.arcMax || def.arc, def.arc + d * (def.arcPerPx || 0)) : 0,
     seed: Math.random() * 6.283
   });
   return life;
@@ -1941,7 +2048,8 @@ function doAttack(u, t){
   // 皇家幽灵：一出手就显形，2 秒不再出手就重新隐身
   if (u.cloak){ u.cloak = false; u.visibleT = 2; }
   // 野猪骑士 / 迷你皮卡 / 皮卡超人 / 瓦基里武神 / 飞龙宝宝每一锤都有专属音效（远程单位在下面统一生成弹道特效）
-  if (u.cardId === 'royalGhost'){
+  if (u.cardId === 'knight') sfxKnightAtk();
+  else if (u.cardId === 'royalGhost'){
     if (!u.atkSounded){ u.atkSounded = true; sfxGhostVo(); }   // 第一次出手（带人声）
     else sfxGhostAtk();                                        // 之后每一刀
   }
@@ -1970,8 +2078,14 @@ function doAttack(u, t){
 // 真正结算一次攻击：近战直接调，远程由 G.pending 里的 shotHit 到点后调。
 //   at 是「打空时的落点」（目标已经死了 / 已经跑开时用它做溅射中心）。
 function applyHit(u, t, at){
+  // 战斗天使：每次出手都给周围友军回血（打没打到人都算，和皇室战争一致）
+  if (u.healOnHit) healAround(u, u.healOnHit, u.healRadius);
   const hit = e => {
     let amt = (e && e.isTower && u.towerDmg != null) ? u.towerDmg : u.dmg;
+    if (u.chargeDmg && u.charged){          // 野蛮人攻城锤冲刺撞上去的那一下
+      amt = u.chargeDmg;
+      G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 8, r1: 46, t:0, life:0.32, color:'#ffcf6a' });
+    }
     if (u.dashBonus){                       // 幻影刺客突袭落地的那一下
       amt = u.dashBonus; u.dashBonus = 0;
       G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 6, r1: 38, t:0, life:0.30, color:'#ff9ad0' });
@@ -1993,7 +2107,9 @@ function applyHit(u, t, at){
     }
     return;
   }
-  const cx = alive ? t.x : at.x, cy = alive ? t.y : at.y;
+  // 追踪弹道：炸在目标当前的位置；迫击炮这种不追踪的：炸在开炮时瞄的那个点（at），目标跑了就打空
+  const cx = (alive && !u.shotNoHome) ? t.x : at.x;
+  const cy = (alive && !u.shotNoHome) ? t.y : at.y;
   if (u.splash > 0){
     G.fx.push({ type:'ring', x:cx, y:cy, r0: 6, r1: u.splash, t:0, life:0.28, color:'#ffe07a' });
     for (const e of G.ents){
@@ -2005,6 +2121,7 @@ function applyHit(u, t, at){
   } else if (alive){
     hit(t); chill(t);
     G.fx.push({ type:'spark', x:t.x, y:t.y, t:0, life:0.2 });
+    if (u.breaksOnHit) kill(u);            // 攻城锤撞上建筑就散架 → 掉出 2 个野蛮人
   }
 }
 
@@ -2331,6 +2448,30 @@ function update(dt){
   // 实体
   for (const e of G.ents) updateEnt(e, dt);
 
+  // 卡死保险：地面单位如果 1.5 秒一步都没挪、目标又还在射程外，就往侧面顶一下绕开。
+  //   正常走路 / 在射程内站桩开火都不会触发（后者目标在射程内）。
+  //   同时兜底「部署动画卡住」：落地 1 秒还没完成的一律强制结束，免得留下半透明的假单位。
+  for (const e of G.ents){
+    if (e.dead || e.isTower || e.isBuilding || e.flying){ e.stuckT = 0; e._px = e.x; e._py = e.y; continue; }
+    if (e.spawnT > 0){
+      e.spawnElapsed = (e.spawnElapsed || 0) + dt;
+      if (e.spawnElapsed > 2.5) e.spawnT = 0;          // 兜底：卡在部署动画里就强制落地
+    }
+    const moved = Math.hypot(e.x - (e._px == null ? e.x : e._px), e.y - (e._py == null ? e.y : e._py));
+    e._px = e.x; e._py = e.y;
+    const tg = e.target;
+    const farTarget = tg && !tg.dead && Math.hypot(tg.x - e.x, tg.y - e.y) > e.range + tg.radius + 8;
+    if (e.spawnT > 0 || e.rootT > 0 || e.stun > 0 || e.hookWind > 0 || !farTarget) e.stuckT = 0;
+    else if (moved < 0.4) e.stuckT = (e.stuckT || 0) + dt;
+    else e.stuckT = 0;
+    if (e.stuckT > 1.5){
+      e.stuckT = 0;
+      const ang = Math.atan2(tg.y - e.y, tg.x - e.x) + Math.PI / 2;
+      e.x = clamp(e.x + Math.cos(ang) * 7, e.radius + 4, AW - e.radius - 4);
+      e.y = clamp(e.y + Math.sin(ang) * 7, e.radius + 4, AH - e.radius - 4);
+    }
+  }
+
   // 分离
   separate();
 
@@ -2441,6 +2582,7 @@ function updateEnt(e, dt){
   }
   if (e.quakeT > 0) e.quakeT -= dt;          // 地震减速
   if (e.invuln > 0) e.invuln -= dt;          // 幻影刺客突袭无敌
+  if (e.frozenT > 0) e.frozenT -= dt;        // 冰冻法术：冰壳视觉（机制走 stun）
   if (e.dashCd > 0) e.dashCd -= dt;          // 突袭冷却
   // 皇家幽灵：出手就显形，**只要还在交战就一直显形**，脱战 2 秒才重新隐身。
   //   （原来只按「上次出手 +2 秒」算，攻速 1.8 秒、首击还要 0.7 秒前摇，
@@ -2599,7 +2741,8 @@ function updateEnt(e, dt){
   //   ③ 被打断 —— 眩晕/冰冻命中时就把 target 清掉了（见 applyStun），解控后重新索敌
   // 注意：这里刻意不再有「每 0.3s 重新选一次最近敌人」的计时器，
   // 所以身边冒出新敌人也不会把正在打的目标抢走。
-  if (!e.target || e.target.dead || dist(e, e.target) > e.range + e.target.radius){
+  if (!e.target || e.target.dead || dist(e, e.target) > e.range + (e.radius || 0) + e.target.radius ||
+      (e.minRange && dist(e, e.target) < e.minRange + (e.radius || 0) + e.target.radius)){
     const prev = e.target;
     e.target = findTarget(e);
     // 换了目标 → 重新蓄力（首次出手的 0.7 秒要重新等一遍）
@@ -2609,7 +2752,10 @@ function updateEnt(e, dt){
   if (!t) return;
 
   const d = dist(e, t);
-  const reach = e.range + t.radius;
+  // 射程按「边到边」算：自己的半径 + 目标的半径都要算上。
+  //   公主塔半径 ≈ 1 格，所以塔实际能打到 8.5 格 —— 只算目标半径的话会短整整一格，
+  //   贴着塔边打不到的兵看起来就像「明明在射程里却不开火」。
+  const reach = e.range + (e.radius || 0) + t.radius;
 
   // 渔夫：3.5~7 格内的地面敌人会被钩子拽到身边（先飞 0.28 秒，再瞬移过来）
   if (e.cardId === 'fisherman' && e.hookMax > 0 && !(e.spawnT > 0)){
@@ -2716,7 +2862,9 @@ function updateEnt(e, dt){
     } else if (e.dashCd <= 0 && t && !t.dead && !t.flying){   // 塔和建筑也照冲（皇室战争里她会突袭塔）
       const d = dist(e, t);
       if (d >= e.dashMin && d <= e.dashRange){
-        e.bdash = Math.min(0.5, Math.max(0.12, d / (e.speed * 5)));
+        // 冲速至少 5 倍；距离太远就再快一点，保证 0.5 秒内一定冲到（否则会停在半路、差几像素打不到）
+        e.dashSpeed = Math.max(e.speed * 5, d / 0.5);
+        e.bdash = Math.max(0.12, d / e.dashSpeed);
         e.invuln = e.bdash + 0.06;
         e.dashBonus = e.dashDmg;
         e.dashCd = 4;
@@ -2732,16 +2880,41 @@ function updateEnt(e, dt){
   // 突袭中：直线冲向目标（不绕桥、不按寻路走，否则会顺着大路冲过头）
   if (e.bdash > 0 && t && !t.dead){
     const ang = Math.atan2(t.y - e.y, t.x - e.x);
-    const sp = e.speed * 5 * dt;
+    const sp = (e.dashSpeed || e.speed * 5) * dt;
     e.facing = Math.cos(ang) >= 0 ? 1 : -1;
     moveStep(e, Math.cos(ang) * sp, Math.sin(ang) * sp, { x: t.x, y: t.y });
+    // 冲到河道里（目标就贴在河对岸的岸上）→ 算她「扑上岸」，落到目标那一侧，别站在水里
+    if (e.y > RIVER_TOP && e.y < RIVER_BOT && (t.y <= RIVER_TOP || t.y >= RIVER_BOT)){
+      let onB = false;
+      for (const b of BRIDGE) if (Math.abs(e.x - b.x) < b.w / 2) onB = true;
+      if (!onB) e.y = t.y <= RIVER_TOP ? RIVER_TOP - 2 : RIVER_BOT + 2;
+    }
     return;
   }
   const wp = firstWaypoint(e, t);
   const ang = Math.atan2(wp.y - e.y, wp.x - e.x);
-  const step = e.speed * dt * (e.slowT > 0 ? SLOW_RATE : 1) * (e.quakeT > 0 ? QUAKE_SLOW : 1) * (e.rageT > 0 ? RAGE_RATE : 1) * (e.bdash > 0 ? 5 : 1);
+  // 攻城锤冲刺后速度从中等换成极快
+  const spd = (e.charged && e.chargeSpeed) ? e.chargeSpeed : e.speed;
+  const step = spd * dt * (e.slowT > 0 ? SLOW_RATE : 1) * (e.quakeT > 0 ? QUAKE_SLOW : 1) * (e.rageT > 0 ? RAGE_RATE : 1) * (e.bdash > 0 ? 5 : 1);
   e.facing = Math.cos(ang) >= 0 ? 1 : -1;
+  const px0 = e.x, py0 = e.y;
   moveStep(e, Math.cos(ang) * step, Math.sin(ang) * step, wp);   // 撞到塔身会沿侧面滑过去
+
+  // 攻城锤助跑：累计走过的距离，满 chargeDist 就进入冲刺（此后每帧冒一点土）
+  if (e.chargeDist > 0 && !e.charged){
+    e.chargeMoved += Math.hypot(e.x - px0, e.y - py0);
+    if (e.chargeMoved >= e.chargeDist){
+      e.charged = true;
+      G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 6, r1: 34, t:0, life:0.26, color:'#ffe0a8' });
+    }
+  }
+  if (e.charged && e.chargeDist > 0){
+    e.chargeFxT -= dt;
+    if (e.chargeFxT <= 0){
+      e.chargeFxT = 0.05;
+      G.fx.push({ type:'spark', x:e.x, y:e.y + e.radius * 0.6, t:0, life:0.22, color:'#d8c090', r: e.radius * 0.55, n: 2 });
+    }
+  }
 
   // 野猪骑士：不绕桥，走到河边直接跳过去
   if (e.jumpRiver){ tryJump(e, ang); return; }
@@ -3157,6 +3330,8 @@ function draw(){
   for (const e of list){
     if (!e.isBuilding || e.dead || e.team !== 'player') continue;
     drawRangeRing(e.x, e.y, e.range, '#4a7dff', { strokeAlpha: 0.32, fillAlpha: 0.05 });
+    // 迫击炮：把盲区也画出来，玩家才知道哪一块打不到
+    if (e.minRange) drawRangeRing(e.x, e.y, e.minRange, '#ff9a5a', { strokeAlpha: 0.34, fillAlpha: 0.05, dash: [7, 7] });
   }
 
   // 狂暴区域：画在地面上、单位之下
@@ -3211,6 +3386,21 @@ function draw(){
     if (c.type === 'building'){
       const col = ok ? '#3aa0ff' : '#ff4646';
       drawRangeRing(x, y, c.range, col, { strokeAlpha: 0.9, fillAlpha: 0.07, width: 3, dash: [13, 9] });
+      // 迫击炮这种有盲区的建筑：把内圈也画出来，不然玩家看不出「贴身打不到」
+      if (c.minRange){
+        drawRangeRing(x, y, c.minRange, '#ff9a5a', { strokeAlpha: 0.85, fillAlpha: 0.06, width: 2.5, dash: [7, 7] });
+        ctx.save();
+        ctx.font = 'bold 14px "PingFang SC","Microsoft YaHei",system-ui,sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.62)';
+        const bt = '盲区 ' + (c.minRange / TILE).toFixed(1) + ' 格';
+        const by2 = y + Math.max(46, c.minRange * 0.55);   // 别被卡牌图标挡住
+        ctx.strokeText(bt, x, by2);
+        ctx.fillStyle = '#ffd0a8';
+        ctx.fillText(bt, x, by2);
+        ctx.restore();
+      }
       ctx.save();
       ctx.font = 'bold 16px "PingFang SC","Microsoft YaHei",system-ui,sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -3941,9 +4131,26 @@ function drawUnit(u){
   const dp = spawning ? clamp(1 - u.spawnT / DEPLOY_TIME, 0, 1) : 1;
   ctx.save();
   // 皇家幽灵隐身时半透明（自己看得见，敌人索敌不到）
-  ctx.globalAlpha = (spawning ? 0.35 + 0.65 * dp : 1) * (u.cloak ? 0.34 : 1);
+  ctx.globalAlpha = (spawning ? 0.62 + 0.38 * dp : 1) * (u.cloak ? 0.34 : 1);
   drawPiece(u, c, r, u.x, by, spawning ? 0.55 + dp * 0.45 : 1);
   ctx.restore();
+
+  // 被冰冻法术冻住：裹一层淡蓝冰壳（呼吸感，别做成静止贴图）
+  if (u.frozenT > 0){
+    ctx.save();
+    ctx.globalAlpha = 0.28 + 0.10 * Math.sin(G.t * 7);
+    ctx.fillStyle = '#bfe8ff';
+    ctx.beginPath(); ctx.ellipse(u.x, by - r * 0.15, r * 1.12, r * 1.45, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = '#eaf9ff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(u.x, by - r * 0.15, r * 1.12, r * 1.45, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(u.x - r * 0.5, by - r * 0.7); ctx.lineTo(u.x + r * 0.15, by - r * 0.2);
+    ctx.lineTo(u.x - r * 0.2, by + r * 0.35); ctx.stroke();
+    ctx.restore();
+  }
 
   // 护盾（骷髅守卫）：一圈冰蓝光罩，盾越薄越淡
   if (u.shield > 0){
@@ -4412,7 +4619,7 @@ function drawFx(f){
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
-    } else if (f.kind === 'bomb' || f.kind === 'cannonball'){
+    } else if (f.kind === 'bomb' || f.kind === 'cannonball' || f.kind === 'shell'){
       // 炮弹 / 炸弹：深色实心球 + 尾烟 + 暖色高光
       for (let i = 3; i >= 1; i--){
         ctx.globalAlpha = (1 - k) * (0.30 - i * 0.07);
@@ -4421,7 +4628,7 @@ function drawFx(f){
       }
       ctx.globalAlpha = 1;
       ctx.save();
-      ctx.shadowColor = f.kind === 'bomb' ? 'rgba(255,140,60,0.85)' : 'rgba(0,0,0,0.45)';
+      ctx.shadowColor = (f.kind === 'bomb' || f.kind === 'shell') ? 'rgba(255,140,60,0.85)' : 'rgba(0,0,0,0.45)';
       ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.arc(x, y, f.w, 0, 7);
       ctx.fillStyle = f.color; ctx.fill();
@@ -4430,7 +4637,7 @@ function drawFx(f){
       // 左上高光，读起来像一颗球而不是一个点
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.beginPath(); ctx.arc(x - f.w * 0.32, y - f.w * 0.34, f.w * 0.28, 0, 7); ctx.fill();
-      if (f.kind === 'bomb'){                    // 引信火花
+      if (f.kind === 'bomb' || f.kind === 'shell'){   // 引信火花
         ctx.fillStyle = '#ffd24a';
         ctx.beginPath();
         ctx.arc(x + ux * 5, y + uy * 5 - 5, 3.2 + Math.sin(k * 40) * 1.1, 0, 7);
@@ -4856,7 +5063,7 @@ function renderDeck(){
 //   · 能直接落到塔上输出：哥布林飞桶（3 个哥布林砸在塔边）
 //   注意：骑士、皮卡、武神、野蛮人这类是「防守后反打」的兵，不算核心；
 //   戈仑冰人虽然只打建筑，但 84 伤 / 2.5 秒，拆不动塔，只能算小坦克。
-const WIN_CONDS = ['giant', 'hogRider', 'wallBreakers', 'goblinBarrel', 'skeletonBarrel', 'miner'];
+const WIN_CONDS = ['giant', 'hogRider', 'wallBreakers', 'goblinBarrel', 'skeletonBarrel', 'miner', 'battleRam', 'giantSkeleton'];
 
 function randomDeck(){
   const avg = d => d.reduce((s, id) => s + CARDS[id].cost, 0) / d.length;
