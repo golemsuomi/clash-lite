@@ -433,7 +433,9 @@ const RIVER_HALF = 37;                      // 河宽的一半 ≈ 0.83 格
 const RIVER_TOP  = RIVER_MID - RIVER_HALF;  // 674
 const RIVER_BOT  = RIVER_MID + RIVER_HALF;  // 748
 const BRIDGE = [{ x: 150, w: 126 }, { x: 650, w: 126 }];
-const TOWER_ROW   = 302;                    // 公主塔中心那一排：距本方底线 ≈ 6.8 格
+// 公主塔占地 3×3：左下角距本方底线 4 格、距左边线 2 格 → 中心 = (2+1.5, 4+1.5) 格
+const PRINCESS_X  = TILE * 3.5;             // 公主塔中心距左边界 3.5 格
+const TOWER_ROW   = TILE * 5.5;             // 公主塔中心那一排：距本方底线 5.5 格（底边 4 格）
 const KING_ROW    = 122;                    // 国王塔中心那一排：距本方底线 ≈ 2.75 格
 // 推掉敌方某侧公主塔后，该侧可下牌的边界 = 「从公主塔往己方半场退 4 格」的那条线。
 //   302 + 4×44.4 ≈ 480：也就是塔前 4 格 —— 破了塔能往对面推进一段，但**不能贴着塔根下兵**。
@@ -614,6 +616,27 @@ const CARDS = {
   battleRam:   { name:'野蛮人攻城锤', cost:4, type:'troop', count:1, hp:967, dmg:286, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:22, glyph:'🔨', c1:'#d8a45a', c2:'#8a5a1c', targetsAir:false, buildingsOnly:true, chargeDist:RG(3.5), chargeDmg:573, chargeSpeed:SP_VFAST, breaksOnHit:true, deathSpawn:2, spawnCard:'barbarians', desc:'只打建筑：助跑 3.5 格后进入冲刺（极快），撞上那一下 573 伤害，然后散成 2 个野蛮人' },
   skeletonDragons:{ name:'骷髅飞龙', cost:4, type:'troop', count:2, hp:560, dmg:151, hitSpeed:2, speed:SP_FAST, range:RG(3.5), radius:20, glyph:'🩻', c1:'#a8d8e8', c2:'#4a7a9a', targetsAir:true, flying:true, splash:RG(1.2), shot:'flame', desc:'2 只飞行单位，范围伤害，空中地面都能打（DPS 76）' },
   bombTower:   { name:'炸弹塔', cost:4, type:'building', hp:1356, dmg:222, hitSpeed:1.8, range:RG(6), radius:28, glyph:'🏯', c1:'#8a8a96', c2:'#4a4a55', targetsAir:false, lifetime:30, splash:RG(1.5), shot:'bomb', deathBlast:RG(1.5), deathDmg:222, desc:'建筑，只打地面、范围伤害；30 秒到期或被摧毁时炸一圈 222（DPS 123）' },
+  // —— 第十五批：神箭游侠 / 哥布林钻机 / 狂暴樵夫 / 暗夜女巫 ——
+  //   神箭游侠：529 / 135 / 1.1s / 中等 / 7 格 / 空地；穿透箭，弹道 11 格
+  //   哥布林钻机：建筑 1313 血 / 每 3 秒出一个哥布林 / 10 秒；钻出地面炸 84（塔 20）
+  //   狂暴樵夫：1282 / 256 / 0.8s / 极快 / 近战:短 / 地面；死后洒狂暴
+  //   暗夜女巫：906 / 314 / 1.3s / 中等 / 近战:长 / 地面；每 5 秒两只蝙蝠，死时 1 只
+  magicArcher:  { name:'神箭游侠', cost:4, type:'troop', count:1, hp:529, dmg:135, hitSpeed:1.1, speed:SP_MED, range:RG(7), radius:19, glyph:'🌠', c1:'#8ad0c0', c2:'#2a6a5a', targetsAir:true, pierce:true, pierceRange:RG(11), desc:'穿透箭：一箭沿直线飞 11 格，路径上的敌人全部吃 135 伤害（射程 7 格）' },
+  goblinDrill:  { name:'哥布林钻机', cost:4, type:'building', hp:1313, dmg:84, hitSpeed:1, range:RG(0), radius:22, glyph:'🕳️', c1:'#9ac06a', c2:'#4a6a2a', lifetime:10, spawnEvery:3, spawnCard:'goblin', spawnCount:1, drillDmg:84, drillTowerDmg:20, deployAnywhere:true, burrowTravel:true, burrowSpeed:3*TILE, desc:'可以下在场上任何位置；从己方国王塔地下钻过去（3 格/秒），出土时炸 84（塔 20），之后每 3 秒钻出一个哥布林，持续 10 秒' },
+  lumberjack:   { name:'狂暴樵夫', cost:4, type:'troop', count:1, hp:1282, dmg:256, hitSpeed:0.8, speed:SP_VFAST, range:R_MELEE_S, radius:20, glyph:'🪚', c1:'#c8a06a', c2:'#6a4a2a', targetsAir:false, deathRage:true, desc:'极快近战（0.8 秒一刀，DPS 320）；阵亡时洒下一片狂暴区域' },
+  nightWitch:   { name:'暗夜女巫', cost:4, type:'troop', count:1, hp:906, dmg:314, hitSpeed:1.3, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'🧛', c1:'#8a6ac0', c2:'#3a2a6a', targetsAir:false, spawnEvery:5, spawnCard:'bats', spawnCount:2, deathSpawn:1, desc:'每 5 秒召唤 2 只蝙蝠，阵亡时再放 1 只（DPS 241）' },
+  // —— 第十四批：地狱飞龙 / 闪电法师 / 哥布林爆破手 / 凤凰 ——
+  //   地狱飞龙：1295 / 35→422（0.4 秒一跳，同一目标越烧越疼）/ 中等 / 3.5 格 / 空地 / 飞行
+  //   闪电法师：714 / 117×2（连锁两个）/ 1.8 秒 / 快 / 5 格 / 空地；登场 192 + 0.5 秒眩晕
+  //   哥布林爆破手：1300 / 186 / 1.1 秒 / 中等 / 5 格 / 地面；血量 ≤50% 冲锋，自爆 404 半径 2.5
+  //   凤凰：1052 / 217 / 1 秒 / 中等 / 近战:长 / 空地 / 飞行；死后留蛋（317 血，3.8 秒孵化）
+  infernoDragon: { name:'地狱飞龙', cost:4, type:'troop', count:1, hp:1295, dmg:35, hitSpeed:0.4, speed:SP_MED, range:RG(3.5), radius:22, glyph:'☄️', c1:'#ff7a3a', c2:'#8a1a0a', targetsAir:true, flying:true, rampTo:422, rampTicks:10, desc:'飞行：对同一目标持续灼烧，伤害从 35 一路涨到 422（约 4 秒烧满，DPS 87→1055）' },
+  electroWizard: { name:'闪电法师', cost:4, type:'troop', count:1, hp:714, dmg:117, hitSpeed:1.8, speed:SP_FAST, range:RG(5), radius:20, glyph:'🪄', c1:'#8ad0ff', c2:'#2a6aa8', targetsAir:true, zapCount:2, stunOnHit:0.5, spawnDmg:192, spawnStun:0.5, desc:'登场 192 伤害 + 0.5 秒眩晕；每次攻击连锁两个目标，各 117 并眩晕 0.5 秒' },
+  goblinDemolisher: { name:'哥布林爆破手', cost:4, type:'troop', count:1, hp:1300, dmg:186, hitSpeed:1.1, speed:SP_MED, range:RG(5), radius:22, glyph:'👷', c1:'#9ac06a', c2:'#4a6a2a', targetsAir:false, splash:RG(1.2), demolish:true, desc:'血量 ≤50% 时以极快速度冲向建筑；冲锋途中阵亡或撞到建筑都会自爆（404 伤害，半径 2.5 格）' },
+  phoenix:      { name:'凤凰',     cost:4, type:'troop', count:1, hp:1052, dmg:217, hitSpeed:1, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'🐦‍🔥', c1:'#ffb84a', c2:'#c04a1a', targetsAir:true, flying:true, deathSpawn:1, spawnCard:'phoenixEgg', desc:'飞行单位；阵亡后留下一枚凤凰蛋（317 血，3.8 秒孵化），孵出的凤凰不会再产蛋' },
+  // 不进卡池：凤凰蛋 / 蛋孵出的凤凰
+  phoenixEgg:   { name:'凤凰蛋',   cost:4, type:'troop', hidden:true, count:1, hp:317, dmg:0, hitSpeed:1, speed:0, range:RG(0), radius:16, glyph:'🥚', c1:'#ffd88a', c2:'#c08a2a', hatchInto:'phoenixReborn', hatchT:3.8, desc:'凤凰蛋：3.8 秒后孵化成凤凰（蛋被打掉就不会孵）' },
+  phoenixReborn:{ name:'凤凰',     cost:4, type:'troop', hidden:true, count:1, hp:1052, dmg:217, hitSpeed:1, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'🐦‍🔥', c1:'#ffb84a', c2:'#c04a1a', targetsAir:true, flying:true, desc:'由凤凰蛋孵出的凤凰（不会再产蛋）' },
   // —— 第十三批：黑暗王子 / 烈焰熔炉 / 猎人 / 毒药法术 ——
   //   黑暗王子：1200 血（护盾 240）/ 266（冲刺 532）/ 1.4 秒 / 中等→冲刺极快 / 近战:中 / 只打地面 / 范围伤害
   //   烈焰熔炉：建筑 727 血 / 30 秒 / 每 5 秒产一个烈焰精灵
@@ -1167,7 +1190,8 @@ function newGame(){
   // 塔
   const T = (team, kind, x, y)=> G.ents.push({
     id: uid++, team, kind, x, y,
-    radius: kind === 'king' ? 58 : 46,
+    // 占地：公主塔 3×3 格、国王塔 4×4 格 → radius 是「半边长度」
+    radius: kind === 'king' ? TILE * 2 : TILE * 1.5,
     hp: kind === 'king' ? KING_HP : PRINCESS_HP,
     maxHp: kind === 'king' ? KING_HP : PRINCESS_HP,
     dmg: kind === 'king' ? KING_DMG : PRINCESS_DMG,
@@ -1181,11 +1205,11 @@ function newGame(){
     flash: 0, anim: Math.random() * 6
   });
   T('ai','king', 400, KING_ROW);
-  T('ai','left', 150, TOWER_ROW);
-  T('ai','right',650, TOWER_ROW);
+  T('ai','left', PRINCESS_X, TOWER_ROW);
+  T('ai','right', AW - PRINCESS_X, TOWER_ROW);
   T('player','king', 400, AH - KING_ROW);
-  T('player','left', 150, AH - TOWER_ROW);
-  T('player','right',650, AH - TOWER_ROW);
+  T('player','left', PRINCESS_X, AH - TOWER_ROW);
+  T('player','right', AW - PRINCESS_X, AH - TOWER_ROW);
 
   for (const s of ['player','ai']){
     const S = G[s];
@@ -1237,7 +1261,7 @@ function canDeploy(team, x, y, card){
   // 塔是实体：不能在塔身上投放（贴着塔边放没问题，只是不能压在塔身上）
   for (const o of G.ents){
     if (!o.isTower || o.dead) continue;
-    if (Math.hypot(x - o.x, y - o.y) < o.radius * 0.9 + 16) return false;
+    if (Math.hypot(x - o.x, y - o.y) < o.radius + 16) return false;
   }
   // 掘地矿工：可以放到地图任意位置（包括敌方半场），这是他的核心机制
   if (card.deployAnywhere) return true;
@@ -1253,6 +1277,33 @@ function canDeploy(team, x, y, card){
     if (!towerAlive('player','left')  && x < AW/2 && y < AH - TOWER_OPEN_ROW) return true;
     if (!towerAlive('player','right') && x > AW/2 && y < AH - TOWER_OPEN_ROW) return true;
     return false;
+  }
+}
+
+// 哥布林钻机：破土而出时炸一圈（兵 84 / 塔 20）
+function drillBlastAt(c, team, x, y){
+  const r = RG(1.6);
+  G.fx.push({ type:'ring', x, y, r0: 8, r1: r, t:0, life:0.42, color:'#e8d0a0' });
+  G.fx.push({ type:'boom', x, y, r: 30, t:0, life:0.35, color:'#c8a060' });
+  for (const o of G.ents){
+    if (o.dead || o.team === team) continue;
+    if (dist(o, { x, y }) > r + o.radius * 0.7) continue;
+    damage(o, (o.isTower && c.drillTowerDmg != null) ? c.drillTowerDmg : c.drillDmg, null, true);
+  }
+}
+
+// 哥布林爆破手的自爆：404 范围伤害（半径 2.5 格），只结算一次
+function demolishBlast(e){
+  if (e.blasted) return;
+  e.blasted = true;
+  const r = RG(2.5);
+  G.fx.push({ type:'ring',  x:e.x, y:e.y, r0: 10, r1: r, t:0, life:0.5, color:'#ffd06a' });
+  G.fx.push({ type:'spell', x:e.x, y:e.y, r, a:0.55, t:0, life:0.45, color:'#ff9a3a' });
+  sfxBoom();
+  for (const o of G.ents){
+    if (o.dead || o.team === e.team) continue;
+    if (dist(o, e) > r + o.radius * 0.6) continue;
+    damage(o, 404, null, true);
   }
 }
 
@@ -1298,6 +1349,7 @@ function spawnBlastAt(c, team, x, y){
     if (o.dead || o.team === team || o.isTower || o.isBuilding) continue;
     if (dist(o, { x, y }) > r + o.radius * 0.7) continue;
     damage(o, c.spawnDmg, null, true);
+    if (c.spawnStun) applyStun(o, c.spawnStun);      // 闪电法师：登场那一下带 0.5 秒眩晕
     applySlow(o, c.slowOnHit || 2.5);
   }
 }
@@ -1725,6 +1777,16 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     // 迫击炮这类「有盲区」的单位：比 minRange 更近的目标打不到
     minRange: c.minRange || 0,
     // 野蛮人攻城锤：走满 chargeDist 进入冲刺（速度换成 chargeSpeed），撞上去那一下用 chargeDmg
+    // 神箭游侠：穿透箭（路径上的敌人都吃伤害）
+    pierce: !!c.pierce, pierceRange: c.pierceRange || 0,
+    // 地狱飞龙：同一目标连续灼烧，伤害从 dmg 一路涨到 rampTo
+    rampTo: c.rampTo || 0, rampTicks: c.rampTicks || 10, rampN: 0, relockT: 0,
+    // 闪电法师：每次攻击连锁 zapCount 个目标，命中附带 stunOnHit 秒眩晕
+    zapCount: c.zapCount || 0, stunOnHit: c.stunOnHit || 0,
+    // 哥布林爆破手：血量掉到一半开始冲锋，冲锋中阵亡 / 撞到建筑自爆
+    demolish: !!c.demolish, demolishing: false, blasted: false,
+    // 凤凰蛋：孵化倒计时 + 孵出来是什么
+    hatchT: c.hatchT || 0, hatchInto: c.hatchInto || null,
     // 猎人：一次打出 pellets 颗弹丸，弹丸最远飞 projRange
     pellets: c.pellets || 0, projRange: c.projRange || 0,
     // 毒药法术的减速（15%）：只影响移动，不占大雪球那套 35% 减速
@@ -1749,6 +1811,32 @@ function spawnUnit(cardId, team, x, y, lane, opts){
   };
   G.ents.push(u);
   return u;
+}
+
+// 造一座建筑（哥布林钻机从地下钻出来时也走这里，所以单独抽出来）
+function spawnBuildingAt(cardId, team, x, y, opts){
+  const c = CARDS[cardId];
+  const o = opts || {};
+  const b = {
+    id: uid++, cardId, team, x, y,
+    radius: c.radius, hp: c.hp, maxHp: c.hp, dmg: c.dmg, hitSpeed: c.hitSpeed,
+    range: c.range, targetsAir: !!c.targetsAir, buildingsOnly: false,
+    splash: c.splash || 0, flying: false, cool: 0.5, rt: 0, target: null, dead: false, slowT: 0,
+    minRange: c.minRange || 0,                 // 迫击炮的盲区
+    hatchT: c.hatchT || 0, hatchInto: c.hatchInto || null,   // 凤凰蛋：孵化倒计时
+    shot: c.shot || null,
+    shotNoHome: !!c.shotNoHome,                // 迫击炮：炮弹不追踪
+    isBuilding: true, decay: c.hp / c.lifetime,
+    spawnT: o.deploy != null ? o.deploy : (c.deploy || DEPLOY_TIME),
+    anim: 0, speed: 0,
+    kbX: 0, kbY: 0, kbT: 0,
+    burrow: !!c.burrow, emerge: c.burrow ? 0 : 1, hidden: !!c.burrow, wasUp: false,
+    hutIdle: false,
+  };
+  G.ents.push(b);
+  G.fx.push({ type:'ring', x, y, r0: 4, r1: 44, t:0, life: c.deploy || DEPLOY_TIME, color:'#ffffff' });
+  if (c.drillDmg) drillBlastAt(c, team, x, y);     // 哥布林钻机：钻出地面那一下炸一圈
+  return b;
 }
 
 function doSpawn(cardId, team, x, y){
@@ -1804,27 +1892,6 @@ function doSpawn(cardId, team, x, y){
     return;
   }
 
-  if (c.type === 'building'){
-    G.ents.push({
-      id: uid++, cardId, team, x, y,
-      radius: c.radius, hp: c.hp, maxHp: c.hp, dmg: c.dmg, hitSpeed: c.hitSpeed,
-      range: c.range, targetsAir: !!c.targetsAir, buildingsOnly: false,
-      splash: c.splash || 0, flying: false, cool: 0.5, rt: 0, target: null, dead: false, slowT: 0,
-      minRange: c.minRange || 0,                 // 迫击炮的盲区
-      shot: c.shot || null,
-      shotNoHome: !!c.shotNoHome,                // 迫击炮：炮弹不追踪
-      isBuilding: true, decay: c.hp / c.lifetime,
-      spawnT: c.deploy || DEPLOY_TIME,           // 迫击炮部署要 3.5 秒
-      anim: 0, speed: 0,
-      kbX: 0, kbY: 0, kbT: 0,
-      // 钻地建筑（电磁塔）：emerge 0=埋在地下 1=完全升起；hidden 期间免疫法术
-      burrow: !!c.burrow, emerge: c.burrow ? 0 : 1, hidden: !!c.burrow, wasUp: false,
-      hutIdle: false,        // 哥布林小屋：探测圈里没敌人、暂停产兵中
-    });
-    G.fx.push({ type:'ring', x, y, r0: 4, r1: 44, t:0, life: c.deploy || DEPLOY_TIME, color:'#ffffff' });
-    return;
-  }
-
   // 掘地矿工：不在落点凭空出现，而是从**己方国王塔**地下钻过去，12 格/秒
   //   —— 所以丢得越远到得越晚（丢到对面塔边大约 1.9 秒），这段时间里他完全不存在，
   //   打不到、也不会被索敌。到点了才在目标点冒出来（见 G.pending 里的 q.burrow）。
@@ -1834,6 +1901,11 @@ function doSpawn(cardId, team, x, y){
     const dur = Math.max(0.25, d / (c.burrowSpeed || RG(12)));
     G.burrows.push({ x0: from.x, y0: from.y, x1: x, y1: y, t: dur, dur, team, cardId });
     G.pending.push({ t: dur, burrow: { team, x, y, cardId } });
+    return;
+  }
+
+  if (c.type === 'building'){
+    spawnBuildingAt(cardId, team, x, y);
     return;
   }
 
@@ -1922,6 +1994,14 @@ function kill(e){
   // 戈仑冰人亡语：原地炸开一圈冰霜 —— 84 范围伤害 + 附近敌人减速 2 秒（数值表）
   //   和自爆精灵不同，它只在**死亡**时触发，被塔打死 / 被打死都会炸。
   const dc = e.cardId ? CARDS[e.cardId] : null;
+  // 哥布林爆破手：冲锋路上被打死 → 原地自爆
+  if (dc && dc.demolish && e.demolishing && !e.blasted) demolishBlast(e);
+  // 狂暴樵夫：阵亡时洒下一片狂暴区域（半径 3 格，4.5 秒）
+  if (dc && dc.deathRage && !e.isTower){
+    const rr = RG(3);
+    G.zones.push({ x:e.x, y:e.y, r: rr, t: 4.5, team: e.team, born: 0 });
+    G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 10, r1: rr, t:0, life:0.5, color:'#e08af0' });
+  }
   if (dc && dc.deathBlast && !e.isTower){
     G.fx.push({ type:'ring',  x:e.x, y:e.y, r0: 10, r1: dc.deathBlast, t:0, life:0.46, color:'#bfe8ff' });
     G.fx.push({ type:'spell', x:e.x, y:e.y, r: dc.deathBlast, a:0.50, t:0, life:0.36, color:'#9fd8ff' });
@@ -2067,7 +2147,9 @@ const SHOT_DEF = {
   // 亡灵巨人扔的骨头：中速、带一点抛物线，边飞边转
   bone:       { speed: 620, color: '#f0ece0', w: 5.5, arc: 16, maxLife: 0.5 },
   // 猎人的霰弹丸：飞得快、个头小，10 颗一起飞成扇形
-  pellet:     { speed: 1400, color: '#ffe6a8', w: 2.8, maxLife: 0.30 }
+  pellet:     { speed: 1400, color: '#ffe6a8', w: 2.8, maxLife: 0.30 },
+  // 神箭游侠的穿透箭：飞得远（11 格），所以要放宽存活时间
+  pierce:     { speed: 900, color: '#ffe9a8', w: 4.5, maxLife: 0.9 }
 };
 
 function shotOrigin(u){
@@ -2096,6 +2178,32 @@ function fireShotgun(u, t){
   const tiles = d / TILE;
   const hits = clamp(Math.round(u.pellets * (1 - (tiles - 1.2) / 5.3)), 2, u.pellets);
   G.pending.push({ t: life, shotgun: { u, target: t, dmg: hits * u.dmg } });
+}
+
+// 神箭游侠：穿透箭 —— 沿瞄准方向飞 pierceRange 格，路径上的敌人全部吃伤害
+function firePierce(u, t){
+  const o = shotOrigin(u);
+  const ang = Math.atan2(t.y - o.y, t.x - o.x);
+  const len = u.pierceRange || RG(11);
+  const def = SHOT_DEF.pierce;
+  const life = clamp(len / def.speed, 0.08, def.maxLife || 0.9);
+  const ex = o.x + Math.cos(ang) * len, ey = o.y + Math.sin(ang) * len;
+  G.fx.push({ type:'shot', kind:'pierce', x0:o.x, y0:o.y, x1:ex, y1:ey, t:0, life,
+              color: def.color, w: def.w, arc: 0, seed: ang });
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  const list = [];
+  for (const e of G.ents){
+    if (e.dead || e.team === u.team) continue;
+    if (e.flying && !u.targetsAir) continue;
+    if (e.cloak || e.hidden) continue;
+    const px = e.x - o.x, py = e.y - o.y;
+    const proj = px * ca + py * sa;
+    if (proj < -e.radius || proj > len + e.radius) continue;
+    const perp = Math.abs(-px * sa + py * ca);
+    if (perp > e.radius + 10) continue;
+    list.push(e);
+  }
+  G.pending.push({ t: life, pierce: { u, list, dmg: u.dmg } });
 }
 
 function spawnShot(u, t){
@@ -2140,6 +2248,7 @@ function doAttack(u, t){
   else if (u.cardId === 'babyDragon') sfxBabyDragonAtk();
   else if (u.cardId === 'wizard') sfxWizardAtk();
   if (u.pellets > 1){ fireShotgun(u, t); return; }   // 猎人：走霰弹
+  if (u.pierce){ firePierce(u, t); return; }         // 神箭游侠：走穿透箭
   const life = spawnShot(u, t);
   // 有弹道的远程单位：伤害等箭/子弹飞到了再结算（不再瞬发）
   //   —— 飞行途中目标死了也照样落在原处（溅射仍然炸），但单体伤害会落空，和皇室战争一致。
@@ -2157,6 +2266,18 @@ function applyHit(u, t, at){
   if (u.healOnHit) healAround(u, u.healOnHit, u.healRadius);
   const hit = e => {
     let amt = (e && e.isTower && u.towerDmg != null) ? u.towerDmg : u.dmg;
+    // 地狱飞龙：对同一目标连续灼烧，伤害从 35 一路涨到 422（换目标 / 走位就归零重烧）
+    if (u.rampTo){
+      const k = Math.min(1, (u.rampN || 0) / (u.rampTicks || 10));
+      amt = Math.round(u.dmg + (u.rampTo - u.dmg) * k);
+      u.rampN = (u.rampN || 0) + 1;
+      // 每一跳在命中点炸一小团火，越烧越大
+      if (e && !e.dead){
+        G.fx.push({ type:'spell', x:e.x, y:e.y, r: 14 + k * 20, a: 0.35 + 0.3 * k, t:0, life: 0.18,
+                    color:'#ff9a3a', core:'#fff2c0', edge:'rgba(255,80,0,0)' });
+        G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 6 + k * 8, r1: 18 + k * 22, t:0, life: 0.16, color:'#ffd08a' });
+      }
+    }
     if (u.chargeDmg && u.charged){          // 野蛮人攻城锤冲刺撞上去的那一下
       amt = u.chargeDmg;
       G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 8, r1: 46, t:0, life:0.32, color:'#ffcf6a' });
@@ -2166,6 +2287,7 @@ function applyHit(u, t, at){
       G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 6, r1: 38, t:0, life:0.30, color:'#ff9ad0' });
     }
     damage(e, amt, u);
+    if (u.stunOnHit && e && !e.dead) applyStun(e, u.stunOnHit);   // 闪电法师：打谁电谁
   };
   const chill = e => { if (u.slowOnHit > 0 && e && !e.isTower && !e.isBuilding) applySlow(e, u.slowOnHit); };
   const alive = t && !t.dead;
@@ -2195,6 +2317,31 @@ function applyHit(u, t, at){
     }
   } else if (alive){
     hit(t); chill(t);
+    // 闪电法师：主目标之外，再电最近的一个（2.5 格内），并画一道电弧
+    if (u.zapCount > 1){
+      // 闪电法师：从法杖甩出一道粗电弧打到目标，落点再炸一圈白蓝闪光
+      const so = shotOrigin(u);
+      G.fx.push({ type:'arc', x0:so.x, y0:so.y - 4, x1:t.x, y1:t.y, t:0, life:0.20,
+                  seed: Math.random() * 6.283, jag: 11 });
+      G.fx.push({ type:'ring', x:t.x, y:t.y, r0: 6, r1: 34, t:0, life:0.24, color:'#eaf6ff' });
+      sfxZap();
+      G.fx.push({ type:'spell', x:t.x, y:t.y, r: 30, a:0.62, t:0, life:0.20, color:'#8fd0ff',
+                  core:'#ffffff', edge:'rgba(90,160,255,0)' });
+      let second = null, bd = RG(2.5);
+      for (const o of G.ents){
+        if (o.dead || o.team === u.team || o === t) continue;
+        if (o.flying && !u.targetsAir) continue;
+        if (o.cloak) continue;
+        const dd = dist(o, t);
+        if (dd < bd){ bd = dd; second = o; }
+      }
+      if (second){
+        hit(second);
+        G.fx.push({ type:'arc', x0:t.x, y0:t.y, x1:second.x, y1:second.y, t:0, life:0.17,
+                    seed: Math.random() * 6.283, jag: 7 });
+        G.fx.push({ type:'ring', x:second.x, y:second.y, r0: 4, r1: 26, t:0, life:0.20, color:'#eaf6ff' });
+      }
+    }
     G.fx.push({ type:'spark', x:t.x, y:t.y, t:0, life:0.2 });
     if (u.breaksOnHit) kill(u);            // 攻城锤撞上建筑就散架 → 掉出 2 个野蛮人
   }
@@ -2385,6 +2532,12 @@ function update(dt){
           applyHit(h.u, h.target, { x: h.x, y: h.y });
           continue;
         }
+        if (q.pierce){
+          // 穿透箭飞到了：路径上的每个敌人各吃一次伤害
+          const p = q.pierce;
+          for (const e of p.list) if (e && !e.dead) damage(e, p.dmg, p.u);
+          continue;
+        }
         if (q.shotgun){
           // 猎人的霰弹飞到了：按命中颗数一次性结算
           const sh = q.shotgun;
@@ -2397,7 +2550,9 @@ function update(dt){
         if (q.burrow){
           // 掘地矿工钻到地方了：原地冒头（0.15 秒）+ 一圈土花
           const b = q.burrow;
-          const u = spawnUnit(b.cardId, b.team, b.x, b.y, b.x < AW / 2 ? 0 : 1, { deploy: 0.15 });
+          const bc2 = CARDS[b.cardId];
+          if (bc2 && bc2.type === 'building') spawnBuildingAt(b.cardId, b.team, b.x, b.y, { deploy: 0.15 });
+          else spawnUnit(b.cardId, b.team, b.x, b.y, b.x < AW / 2 ? 0 : 1, { deploy: 0.15 });
           G.fx.push({ type:'ring', x:b.x, y:b.y, r0: 6, r1: 46, t:0, life:0.36, color:'#d8b878' });
           G.fx.push({ type:'boom', x:b.x, y:b.y, r: 26, t:0, life:0.30, color:'#a8813f' });
           sfxDeploy();
@@ -2552,7 +2707,7 @@ function update(dt){
   //   正常走路 / 在射程内站桩开火都不会触发（后者目标在射程内）。
   //   同时兜底「部署动画卡住」：落地 1 秒还没完成的一律强制结束，免得留下半透明的假单位。
   for (const e of G.ents){
-    if (e.dead || e.isTower || e.isBuilding || e.flying){ e.stuckT = 0; e._px = e.x; e._py = e.y; continue; }
+    if (e.dead || e.isTower || e.isBuilding || e.flying || !(e.speed > 0)){ e.stuckT = 0; e._px = e.x; e._py = e.y; continue; }
     if (e.spawnT > 0){
       e.spawnElapsed = (e.spawnElapsed || 0) + dt;
       if (e.spawnElapsed > 2.5) e.spawnT = 0;          // 兜底：卡在部署动画里就强制落地
@@ -2601,7 +2756,7 @@ function moveStep(e, sx, sy, wp){
   }
   for (const o of G.ents){
     if (!o.isTower || o.dead) continue;
-    const hw = o.radius * 0.9 + e.radius;
+    const hw = o.radius + e.radius;
     const dx = e.x - o.x, dy = e.y - o.y;
     if (Math.abs(dx) >= hw || Math.abs(dy) >= hw) continue;   // 没碰到这座塔
     const ox = hw - Math.abs(dx), oy = hw - Math.abs(dy);
@@ -2625,14 +2780,14 @@ function moveStep(e, sx, sy, wp){
 }
 
 // 塔是实体：地面单位不能穿过塔身（飞行单位从塔顶掠过，不参与碰撞）。
-//   塔画出来是 1.8×半径的**方块**（见 drawTower 的 s = radius * 1.8），所以碰撞也用矩形：
-//   半宽 = radius * 0.9（正好是塔身侧边的位置），单位被推到「塔身 + 自己半径」的矩形外，
+//   塔画出来是 2×半径的**方块**（见 drawTower 的 s = radius * 2），所以碰撞也用矩形：
+//   半宽 = radius（正好是塔身侧边的位置），单位被推到「塔身 + 自己半径」的矩形外，
 //   侧面能贴着塔身站，四角也不会压进去。近战距离（range + 塔半径）远大于此，不影响开火。
 function pushOutOfTowers(e){
   if (e.isTower || e.isBuilding || e.flying) return;
   for (const o of G.ents){
     if (!o.isTower || o.dead) continue;
-    const hw = o.radius * 0.9 + e.radius;
+    const hw = o.radius + e.radius;
     const dx = e.x - o.x, dy = e.y - o.y;
     if (Math.abs(dx) < hw && Math.abs(dy) < hw){
       const ox = hw - Math.abs(dx), oy = hw - Math.abs(dy);
@@ -2683,7 +2838,28 @@ function updateEnt(e, dt){
   if (e.quakeT > 0) e.quakeT -= dt;          // 地震减速
   if (e.invuln > 0) e.invuln -= dt;          // 幻影刺客突袭无敌
   if (e.frozenT > 0) e.frozenT -= dt;        // 冰冻法术：冰壳视觉（机制走 stun）
+  // 哥布林爆破手：血量掉到 50% 以下 → 改成只打建筑、极快速度冲过去（撞上或死在路上都会炸）
+  if (e.demolish && !e.demolishing && e.hp <= e.maxHp * 0.5){
+    e.demolishing = true;
+    e.speed = SP_VFAST;
+    e.buildingsOnly = true;
+    e.range = R_MELEE_S;        // 冲锋是「撞上去」，不是远远地开枪
+    e.target = null;
+    G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 8, r1: 44, t:0, life:0.32, color:'#ffd06a' });
+  }
+  // 凤凰蛋：孵化时间到了 → 变成新凤凰（蛋被打掉就不会孵）
+  if (e.hatchT > 0 && !(e.spawnT > 0) && !e.dead){
+    e.hatchT -= dt;
+    if (e.hatchT <= 0){
+      summonAt(e.hatchInto, e.team, e.x, e.y, e.x < AW / 2 ? 0 : 1);
+      G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 8, r1: 58, t:0, life:0.5, color:'#ffd06a' });
+      G.fx.push({ type:'boom', x:e.x, y:e.y, r: 34, t:0, life:0.4, color:'#ffcf6a' });
+      e.dead = true;                 // 直接消失，不走 kill()（避免再触发亡语）
+      return;
+    }
+  }
   if (e.poisonT > 0) e.poisonT -= dt;        // 毒药法术：15% 减速
+  if (e.relockT > 0) e.relockT -= dt;        // 地狱飞龙：换目标后的重新锁定计时
   if (e.dashCd > 0) e.dashCd -= dt;          // 突袭冷却
   // 皇家幽灵：出手就显形，**只要还在交战就一直显形**，脱战 2 秒才重新隐身。
   //   （原来只按「上次出手 +2 秒」算，攻速 1.8 秒、首击还要 0.7 秒前摇，
@@ -2847,8 +3023,14 @@ function updateEnt(e, dt){
       (e.minRange && dist(e, e.target) < e.minRange + (e.radius || 0) + e.target.radius)){
     const prev = e.target;
     e.target = findTarget(e);
-    // 换了目标 → 重新蓄力（首次出手的 0.7 秒要重新等一遍）
-    if (e.target !== prev) e.atkReady = false;
+    // 换了目标 → 重新蓄力（首次出手的 0.7 秒要重新等一遍）；地狱飞龙的灼烧也归零
+    if (e.target !== prev){
+      e.atkReady = false;
+      // 地狱飞龙：换目标要重新锁定 1 秒（这 1 秒不烧，之后从 35 重新叠）
+      //   只有「从一只换成另一只」才算切换；第一次锁定走正常的前摇
+      if (e.rampTo && prev){ e.rampN = 0; e.relockT = 1.0; }
+      else if (e.rampTo) e.rampN = 0;
+    }
   }
   const t = e.target;
   if (!t) return;
@@ -2945,6 +3127,14 @@ function updateEnt(e, dt){
       }
       return;
     }
+    // 地狱飞龙：换目标后的 1 秒重新锁定期间不烧
+    if (e.relockT > 0) return;
+    // 哥布林爆破手：冲到建筑身上直接引爆（不普攻）
+    if (e.demolishing){
+      demolishBlast(e);
+      kill(e);
+      return;
+    }
     if (e.cool <= 0 && e.dmg > 0 && !(e.spawnT > 0)){
       e.cool = e.hitSpeed;
       doAttack(e, t);
@@ -3005,6 +3195,7 @@ function updateEnt(e, dt){
   e.facing = Math.cos(ang) >= 0 ? 1 : -1;
   const px0 = e.x, py0 = e.y;
   moveStep(e, Math.cos(ang) * step, Math.sin(ang) * step, wp);   // 撞到塔身会沿侧面滑过去
+  if (e.rampTo) e.rampN = 0;        // 地狱飞龙：只要在走位（没在烧），伤害就从头叠
 
   // 攻城锤助跑：累计走过的距离，满 chargeDist 就进入冲刺（此后每帧冒一点土）
   if (e.chargeDist > 0 && !e.charged){
@@ -3368,6 +3559,23 @@ function draw(){
   ctx.fillStyle = 'rgba(255,90,90,0.055)'; ctx.fillRect(0, 0, AW, RIVER_TOP);
   ctx.fillStyle = 'rgba(70,140,255,0.055)'; ctx.fillRect(0, RIVER_BOT, AW, AH - RIVER_BOT);
 
+  // 格子：淡淡一层网格（18 × 32），方便一眼估「几格」的距离。
+  //   画在河之前 —— 河道和桥会自然盖住中间那一条，看起来不像画在河面上。
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.20)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 1; i < 18; i++){
+    const x = Math.round(i * TILE) + 0.5;
+    ctx.moveTo(x, 0); ctx.lineTo(x, AH);
+  }
+  for (let j = 1; j < 32; j++){
+    const y = Math.round(j * TILE) + 0.5;
+    ctx.moveTo(0, y); ctx.lineTo(AW, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
   // 河
   const g = ctx.createLinearGradient(0, RIVER_TOP, 0, RIVER_BOT);
   g.addColorStop(0, '#4fa8dd'); g.addColorStop(0.5, '#3d8fc9'); g.addColorStop(1, '#4fa8dd');
@@ -3443,6 +3651,10 @@ function draw(){
   // 狂暴区域：画在地面上、单位之下
   for (const z of (G.zones || [])) (z.kind === 'vines' ? drawVinesZone(z) : z.kind === 'quake' ? drawQuakeZone(z) : z.kind === 'tornado' ? drawTornadoZone(z) : z.kind === 'poison' ? drawPoisonZone(z) : drawRageZone(z));
   for (const b of (G.burrows || [])) drawMinerBurrow(b);
+
+  // 地狱飞龙的灼烧光束：画在单位之前（像贴在地面上的一道火柱，不挡脸）
+  for (const e of list) if (e.rampTo && !e.dead && !e.flying) drawInfernoBeam(e);
+  for (const e of list) if (e.rampTo && !e.dead && e.flying) drawInfernoBeam(e);
 
   // 按 y 排序绘制：站在塔「后面」（y 更小）的单位先画，塔再盖上去；
   //   站在塔前面的后画。否则塔后的单位会糊在塔冠上，看起来像穿过去了。
@@ -3798,7 +4010,10 @@ function shieldPath(cx, cy, w, h){
 // 塔：石基 → 塔身（队伍色渐变 + 石缝 + 圆柱感 + 角柱）→ 悬挑顶台 → 城垛
 //   国王塔额外镶金边、徽记加金环、脚下有金光；未激活时整体褪成灰并挂锁
 function drawTower(t){
-  const s = t.radius * 1.8;
+  // 占地（碰撞）是 3×3 / 4×4，但模型不用铺满 —— 铺满会显得塔又大又笨，
+  //   只画占地的 75%，视觉上更像皇室战争里那种「塔身比底座小一圈」的感觉。
+  const ART = 0.62;
+  const s = t.radius * 2 * ART;
   const x = t.x, y = t.y;
   const isP = t.team === 'player';
   const king = t.kind === 'king';
@@ -4207,6 +4422,50 @@ function drawBurrow(u, c, r){
 
 }
 
+// 地狱飞龙的持续光束：从嘴里喷到目标身上，越烧越粗越亮（画在单位下面，免得盖住人）
+function drawInfernoBeam(u){
+  const t = u.target;
+  if (!t || t.dead || u.relockT > 0) return;      // 重新锁定中：不喷火
+  const d = dist(u, t);
+  if (d > u.range + u.radius + t.radius + 8) return;
+  const k = Math.min(1, (u.rampN || 0) / (u.rampTicks || 10));      // 0 → 1 烧满
+  const flick = 1 + Math.sin(G.t * 26 + u.id) * 0.10;               // 轻微跳动，别像根直线
+  const sx = u.x, sy = u.y - u.radius * 0.15;
+  const ex = t.x, ey = t.y - t.radius * 0.15;
+  const w = (3.2 + k * 11) * flick;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.globalCompositeOperation = 'lighter';
+  // 外层光晕（烧满后偏红）
+  ctx.globalAlpha = 0.42 + 0.30 * k;
+  ctx.strokeStyle = k > 0.5 ? '#ff3208' : '#ff6a18';
+  ctx.lineWidth = w * 2.6;
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+  // 中层（橙）
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = '#ff8c1e';
+  ctx.lineWidth = w;
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+  // 白热核心
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#fff2cc';
+  ctx.lineWidth = Math.max(1.8, w * 0.42);
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+  // 命中点爆燃
+  const ir = (12 + k * 26) * flick;
+  const g = ctx.createRadialGradient(ex, ey, 0, ex, ey, ir);
+  g.addColorStop(0, 'rgba(255,255,235,0.95)');
+  g.addColorStop(0.45, 'rgba(255,150,50,' + (0.55 + 0.3 * k).toFixed(2) + ')');
+  g.addColorStop(1, 'rgba(255,90,20,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(ex, ey, ir, 0, Math.PI * 2); ctx.fill();
+  // 火口的一点火星
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = '#ffe0a0';
+  ctx.beginPath(); ctx.arc(sx, sy, 2.4 + k * 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 function drawUnit(u){
   const c = CARDS[u.cardId];
   if (!c) return;
@@ -4584,6 +4843,43 @@ function drawFx(f){
       ctx.lineTo(hx - ux * 7 + uy * 4.5, hy - uy * 7 - ux * 4.5);
       ctx.stroke();
     }
+  } else if (f.type === 'arc'){
+    // 电弧：两点之间的锯齿闪电，外深蓝描边 → 内白芯，末端一团爆闪（闪电法师的普攻）
+    const seg = 8;
+    const dx = f.x1 - f.x0, dy = f.y1 - f.y0;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const amp = f.jag || 9;
+    const a = 1 - k;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const pts = [];
+    for (let i = 0; i <= seg; i++){
+      const q = i / seg;
+      const off = (i === 0 || i === seg) ? 0 : Math.sin(f.seed + i * 7.3) * amp * (1 - Math.abs(q - 0.5) * 0.55);
+      pts.push([f.x0 + dx * q + nx * off, f.y0 + dy * q + ny * off]);
+    }
+    for (const [lw, col, al] of [
+      [16, '#0e1a44', 0.42],
+      [8.5,'#4a9bff', 0.90],
+      [4.0,'#d7f0ff', 0.98],
+      [1.9,'#ffffff', 1.00]
+    ]){
+      ctx.globalAlpha = al * a;
+      ctx.strokeStyle = col; ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    if (k < 0.5){
+      const fa = 1 - k / 0.5;
+      const g = ctx.createRadialGradient(f.x1, f.y1, 0, f.x1, f.y1, 30);
+      g.addColorStop(0, 'rgba(255,255,255,' + (0.92 * fa).toFixed(2) + ')');
+      g.addColorStop(0.45, 'rgba(160,220,255,' + (0.55 * fa).toFixed(2) + ')');
+      g.addColorStop(1, 'rgba(120,190,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(f.x1, f.y1, 30, 0, Math.PI * 2); ctx.fill();
+    }
   } else if (f.type === 'bolt'){
     // 雷电：从画面上方劈下来的锯齿闪电 + 落点闪光
     //   草地是亮绿色，纯白闪电会糊掉，所以最外层压一圈深蓝做描边
@@ -4775,6 +5071,19 @@ function drawFx(f){
         ctx.arc(x + ux * 5, y + uy * 5 - 5, 3.2 + Math.sin(k * 40) * 1.1, 0, 7);
         ctx.fill();
       }
+    } else if (f.kind === 'pierce'){
+      // 神箭游侠的穿透箭：一道长拖尾 + 亮箭头
+      const tx = x - ux * 74, ty = y - uy * 74;
+      const tg = ctx.createLinearGradient(tx, ty, x, y);
+      tg.addColorStop(0, 'rgba(255,235,160,0)');
+      tg.addColorStop(0.55, 'rgba(255,240,190,0.45)');
+      tg.addColorStop(1, 'rgba(255,255,235,0.95)');
+      ctx.strokeStyle = tg; ctx.lineWidth = f.w * 2.4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(x, y); ctx.stroke();
+      ctx.fillStyle = '#fffdf0';
+      ctx.beginPath(); ctx.arc(x, y, f.w * 1.15, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,245,200,0.75)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x - ux * 16, y - uy * 16); ctx.lineTo(x, y); ctx.stroke();
     } else if (f.kind === 'pellet'){
       // 猎人的霰弹丸：小亮点 + 短拖尾
       ctx.globalAlpha = 1 - k * 0.45;
