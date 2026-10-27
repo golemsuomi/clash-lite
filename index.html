@@ -414,18 +414,23 @@ canvas{border-radius:12px;box-shadow:0 8px 26px rgba(20,45,90,.35);display:block
 "use strict";
 /* =========================================================
    皇室战争纯净版 —— 单文件实现
-   战场虚拟坐标 800 x 1422（= 18 格 × 32 格，与真实皇室战争同比例）
+   战场虚拟坐标 800 x 1333（= 18 格 × 30 格）
    ========================================================= */
 
 // ---------------- 常量 ----------------
-// 竞技场按真实皇室战争的 18 × 32 格比例搭建：
-//   横向 1 格 = AW / 18 ≈ 44.4 战场单位；纵向用同一把尺子 → 高度 = 44.4 × 32 = 1422
+// 竞技场按 18 × 30 格搭建（皇室战争是 32 格，这里上下各去掉最外一行）：
+//   横向 1 格 = AW / 18 ≈ 44.4 战场单位；纵向用同一把尺子 → 高度 = 44.4 × 30 = 1333
 //   旧版高度 1150 只相当于 25.9 格，纵向被压扁：同一个射程圆横向占 30% 宽、纵向却占 21% 高，
 //   换算成横向格后纵向就显得「够得着更远」——这才是加农炮射程看着偏长的真正原因。
 //   现在横纵同尺，所有以「格」为单位的射程自动变准，卡牌数值一个都不用改。
 const AW = 800;
 const TILE = AW / 18;               // 1 格 ≈ 44.44 战场单位
-const AH = Math.round(TILE * 32);   // 1422 = 18 × 32 格
+const AH = Math.round(TILE * 30);   // 1333 = 18 × 30 格（主体）
+// 国王塔背后还各多出一排草地：7 格宽、1 格高、居中 → 整块场地是「凸」字形
+const PAD_ROW = TILE;                 // 凸出来的那一排有多高（1 格）
+const BUMP_W  = TILE * 7;             // 凸出来的宽度（7 格）
+const BUMP_X0 = AW / 2 - BUMP_W / 2;  // 凸出部分的左边界
+const AH_VIEW = AH + PAD_ROW * 2;     // 画布的世界高度（含上下两排凸出）
 
 // 纵向坐标（塔位、河）本来就是按「格」摆的，横向尺子没变 → 绝对值保持不变，不再做纵向拉伸
 const RIVER_MID  = AH / 2;                  // 河心：竞技场正中（第 16 格）711
@@ -436,7 +441,7 @@ const BRIDGE = [{ x: 150, w: 126 }, { x: 650, w: 126 }];
 // 公主塔占地 3×3：左下角距本方底线 4 格、距左边线 2 格 → 中心 = (2+1.5, 4+1.5) 格
 const PRINCESS_X  = TILE * 3.5;             // 公主塔中心距左边界 3.5 格
 const TOWER_ROW   = TILE * 5.5;             // 公主塔中心那一排：距本方底线 5.5 格（底边 4 格）
-const KING_ROW    = 122;                    // 国王塔中心那一排：距本方底线 ≈ 2.75 格
+const KING_ROW    = TILE * 2;               // 国王塔中心：距本方底线 2 格（4×4 → 外沿正好贴着边框）
 // 推掉敌方某侧公主塔后，该侧可下牌的边界 = 「从公主塔往己方半场退 4 格」的那条线。
 //   302 + 4×44.4 ≈ 480：也就是塔前 4 格 —— 破了塔能往对面推进一段，但**不能贴着塔根下兵**。
 const TOWER_OPEN_ROW = TOWER_ROW + 4 * TILE;
@@ -519,7 +524,7 @@ const CARDS = {
   minions:     { name:'亡灵',        cost:3, type:'troop', count:3, hp:230,  dmg:107, hitSpeed:1.2, speed:SP_FAST,  range:RG(2.5),   radius:15, glyph:'👻', c1:'#9b6bd6', c2:'#6a3fa8', targetsAir:true, flying:true, form:'tri', desc:'三只飞行单位，落地摆成等腰三角形（前排两个、后排一个居中），攻守兼备（DPS 89）' },
   musketeer:   { name:'火枪手',      cost:4, type:'troop', count:1, hp:721,  dmg:217, hitSpeed:1.0, speed:SP_MED,   range:RG(6),     radius:18, glyph:'🔫', c1:'#d98a4a', c2:'#a35c22', targetsAir:true, shot:'bullet', desc:'高单体伤害的远程射手（DPS 217）' },
   barbarians:  { name:'野蛮人',      cost:5, type:'troop', count:5, hp:716,  dmg:192, hitSpeed:1.4, speed:SP_MED,   range:R_MELEE_S, radius:18, glyph:'🪓', c1:'#d4a03c', c2:'#9c7015', targetsAir:false, form:'221', desc:'五个近战，落地排成 2-2-1（前两、中两、后一居中），围杀坦克（DPS 137）' },
-  spearGoblins:{ name:'哥布林投矛手',cost:2, type:'troop', count:3, hp:133,  dmg:81,  hitSpeed:1.6, speed:SP_VFAST, range:RG(5),     radius:15, glyph:'🔱', c1:'#7fbf4a', c2:'#4f8a24', targetsAir:true,  shot:'spear', desc:'便宜好用的三个远程（DPS 51）' },
+  spearGoblins:{ name:'哥布林投矛手',cost:2, type:'troop', count:3, form:'tri', hp:133,  dmg:81,  hitSpeed:1.6, speed:SP_VFAST, range:RG(5),     radius:15, glyph:'🔱', c1:'#7fbf4a', c2:'#4f8a24', targetsAir:true,  shot:'spear', desc:'便宜好用的三个远程（DPS 51）' },
   skeletons:   { name:'骷髅兵',      cost:1, type:'troop', count:3, hp:81,   dmg:81,  hitSpeed:1.1, speed:SP_FAST,  range:R_MELEE_S, radius:14, glyph:'💀', c1:'#b9b9c4', c2:'#7f7f8f', targetsAir:false, desc:'一费三个，用来牵制（DPS 74）' },
   valkyrie:    { name:'瓦基里武神',  cost:4, type:'troop', count:1, hp:1907, dmg:266, hitSpeed:1.5, speed:SP_MED,   range:R_MELEE_M, radius:22, glyph:'⚔️', c1:'#e0725a', c2:'#a8412c', targetsAir:false, spin:true, desc:'360° 旋斩，一刀打周围一圈敌人，清小兵（DPS 177）' },
   hogRider:    { name:'野猪骑士',    cost:4, type:'troop', count:1, hp:1697, dmg:317, hitSpeed:1.6, speed:SP_VFAST, range:R_MELEE_S, radius:22, glyph:'🐗', c1:'#c47a5a', c2:'#8f4f34', targetsAir:false, buildingsOnly:true, jumpRiver:true, desc:'高速只打建筑，可跳河，偷塔核心（DPS 198）' },
@@ -565,14 +570,14 @@ const CARDS = {
   rage:        { name:'狂暴法术',   cost:2, type:'spell', dmg:179, towerDmg:46, spellRadius:RG(3), rageDur:4.5, glyph:'🌀', c1:'#c86ae0', c2:'#7a2a9a', desc:'半径 3 格，179 伤害（塔 46）；4.5 秒内区域里的己方单位移动与攻击速度 +30%' },
   goblinBarrel:{ name:'哥布林飞桶', cost:3, type:'spell', spellRadius:RG(1.5), spawnTroops:'goblin', spawnCount:3, projSpeed:RG(800/60), projKind:'barrel', glyph:'🪂', c1:'#8fbf4a', c2:'#4f7a1c', desc:'飞向目标点砸开，召唤 3 个哥布林（呈三角形分布）；本身不造成伤害' },
   tombstone:   { name:'骷髅墓碑',   cost:3, type:'building', hp:529, dmg:0, hitSpeed:1, range:RG(0), radius:26, glyph:'🪦', c1:'#9a8fb0', c2:'#4f4566', lifetime:30, spawnEvery:4, spawnCard:'skeletons', spawnCount:2, deathSpawn:4, desc:'建筑，落地立刻召唤 2 个骷髅兵，之后每 4 秒再召唤 2 个，持续 30 秒；被摧毁时额外召唤 4 个' },
-  guards:      { name:'骷髅守卫',   cost:3, type:'troop', count:3, hp:81, shield:256, dmg:117, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_L, radius:15, glyph:'🦴', c1:'#b9b9c4', c2:'#5f5f7a', targetsAir:false, desc:'三只骷髅，护盾可完整挡下一次任意大小的伤害（DPS 117）' },
+  guards:      { name:'骷髅守卫',   cost:3, type:'troop', count:3, form:'tri', hp:81, shield:256, dmg:117, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_L, radius:15, glyph:'🦴', c1:'#b9b9c4', c2:'#5f5f7a', targetsAir:false, desc:'三只骷髅，护盾可完整挡下一次任意大小的伤害（DPS 117）' },
   // —— 第七批：哥布林团伙 / 骷髅气球 / 吹箭哥布林 / 藤蔓法术（数值表最新 4 行）——
   //   团伙：前排 3 个哥布林 + 后排 3 个哥布林投矛手（两种兵一起出，见 doSpawn 的特例）
   //   骷髅气球：523 血 / 快 / 飞行且只打建筑 / 被打爆或撞塔时 163 范围伤害 + 掉 7 个骷髅
   //   吹箭哥布林：261 / 143 / 0.8s / 极快 / 6.5 格 / 打空地
   //   藤蔓：153 每秒（塔 35）半径 2.5 / 持续 2 秒 / 最多定身 3 个 / 把飞行单位拽到地面
   goblinGang:  { name:'哥布林团伙', cost:3, type:'troop', count:6, hp:202, dmg:125, hitSpeed:1.1, speed:SP_VFAST, range:R_MELEE_S, radius:15, glyph:'👥', c1:'#8fd45a', c2:'#3f7a1c', targetsAir:false, desc:'前排 3 个哥布林、后排 3 个哥布林投矛手，一次铺开两种兵' },
-  skeletonBarrel:{ name:'骷髅气球', cost:3, type:'troop', count:1, hp:523, dmg:0, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_S, radius:26, glyph:'🎈', c1:'#d8cfb4', c2:'#7a6f58', targetsAir:false, flying:true, buildingsOnly:true, suicide:true, blast:RG(1.6), deathDmg:163, deathBlast:RG(1.6), deathSpawn:7, spawnCard:'skeletons', deathSpawnFan:true, desc:'飞行，只打建筑；撞到塔或被击落时炸开 163 范围伤害，并掉出 7 个骷髅兵' },
+  skeletonBarrel:{ name:'骷髅气球', cost:3, type:'troop', count:1, hp:523, dmg:0, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_S, radius:26, glyph:'🪣', c1:'#d8cfb4', c2:'#7a6f58', targetsAir:false, flying:true, buildingsOnly:true, suicide:true, blast:RG(1.6), deathDmg:163, deathBlast:RG(1.6), deathSpawn:7, spawnCard:'skeletons', deathSpawnFan:true, desc:'飞行，只打建筑；撞到塔或被击落时炸开 163 范围伤害，并掉出 7 个骷髅兵' },
   dartGoblin:  { name:'吹箭哥布林', cost:3, type:'troop', count:1, hp:261, dmg:143, hitSpeed:0.8, speed:SP_VFAST, range:RG(6.5), radius:16, glyph:'🪶', c1:'#9ad44a', c2:'#4f7a1c', targetsAir:true, shot:'dart', desc:'0.8 秒一发的远程吹箭，射程 6.5 格，能打空中（DPS 179）' },
   vines:       { name:'藤蔓法术',   cost:3, type:'spell', dmg:153, towerDmg:35, spellRadius:RG(2.5), vineDur:2, vineMax:3, glyph:'🌿', c1:'#4fae5a', c2:'#1f6b34', desc:'半径 2.5 格，持续 2 秒：每秒 153 伤害（塔 35），最多定身 3 个敌人，并把飞行单位拽到地面' },
   // —— 第八批：公主 / 掘地矿工 / 寒冰法师 / 地震法术（数值表最新 4 行）——
@@ -616,6 +621,15 @@ const CARDS = {
   battleRam:   { name:'野蛮人攻城锤', cost:4, type:'troop', count:1, hp:967, dmg:286, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:22, glyph:'🔨', c1:'#d8a45a', c2:'#8a5a1c', targetsAir:false, buildingsOnly:true, chargeDist:RG(3.5), chargeDmg:573, chargeSpeed:SP_VFAST, breaksOnHit:true, deathSpawn:2, spawnCard:'barbarians', desc:'只打建筑：助跑 3.5 格后进入冲刺（极快），撞上那一下 573 伤害，然后散成 2 个野蛮人' },
   skeletonDragons:{ name:'骷髅飞龙', cost:4, type:'troop', count:2, hp:560, dmg:151, hitSpeed:2, speed:SP_FAST, range:RG(3.5), radius:20, glyph:'🩻', c1:'#a8d8e8', c2:'#4a7a9a', targetsAir:true, flying:true, splash:RG(1.2), shot:'flame', desc:'2 只飞行单位，范围伤害，空中地面都能打（DPS 76）' },
   bombTower:   { name:'炸弹塔', cost:4, type:'building', hp:1356, dmg:222, hitSpeed:1.8, range:RG(6), radius:28, glyph:'🏯', c1:'#8a8a96', c2:'#4a4a55', targetsAir:false, lifetime:30, splash:RG(1.5), shot:'bomb', deathBlast:RG(1.5), deathDmg:222, desc:'建筑，只打地面、范围伤害；30 秒到期或被摧毁时炸一圈 222（DPS 123）' },
+  // —— 第十六批：地狱之塔 / 女巫 / 气球兵 / 皇家野猪 ——
+  //   地狱之塔：建筑 1748 血 / 30 秒 / 6 格 / 0.4 秒一跳 / 43→847（机制同地狱飞龙）
+  //   女巫：839 / 135 / 1.1 秒 / 5.5 格 / 空地；每 7 秒召唤 4 只蝙蝠
+  //   气球兵：1676 / 640 / 2 秒 / 中等 / 近战:短 / 只打建筑 / 飞行；死后掉炸弹 240（半径 2.5）
+  //   皇家野猪：4 只，每只 837 / 74 / 1.2 秒 / 极快 / 近战:短 / 只打建筑；会跳河
+  infernoTower: { name:'地狱之塔', cost:5, type:'building', hp:1748, dmg:43, hitSpeed:0.4, range:RG(6), radius:26, glyph:'🏰', c1:'#e07a3a', c2:'#8a2a0a', targetsAir:true, lifetime:30, rampTo:847, rampTicks:10, desc:'建筑：对同一目标持续灼烧，43→847（约 4 秒烧满），持续 30 秒（DPS 107→2117）' },
+  witch:        { name:'女巫',     cost:5, type:'troop', count:1, hp:839, dmg:135, hitSpeed:1.1, speed:SP_MED, range:RG(5.5), radius:20, glyph:'🧹', c1:'#a07ad0', c2:'#4a2a7a', targetsAir:true, spawnEvery:7, spawnCard:'skeletons', spawnCount:4, spawnStagger:0.12, summonCross:true, shot:'magic', desc:'每 7 秒召唤 4 只骷髅兵；远程 5.5 格，空中地面通吃' },
+  balloon:      { name:'气球兵',   cost:5, type:'troop', count:1, hp:1676, dmg:640, hitSpeed:2, speed:SP_MED, range:R_MELEE_S, radius:24, glyph:'🎈', c1:'#d8a05a', c2:'#8a5a2a', targetsAir:false, flying:true, buildingsOnly:true, deathDmg:240, deathBlast:RG(2.5), desc:'飞行、只打建筑（640 一下）；被击落时掉炸弹，炸 240 范围伤害' },
+  royalHogs:    { name:'皇家野猪', cost:5, type:'troop', count:4, form:'line', hp:837, dmg:74, hitSpeed:1.2, speed:SP_VFAST, range:R_MELEE_S, radius:18, glyph:'🐖', c1:'#e0a0a0', c2:'#a04a4a', targetsAir:false, buildingsOnly:true, jumpRiver:true, desc:'4 只只打建筑的野猪，速度极快、会跳河（每只 DPS 61）' },
   // —— 第十五批：神箭游侠 / 哥布林钻机 / 狂暴樵夫 / 暗夜女巫 ——
   //   神箭游侠：529 / 135 / 1.1s / 中等 / 7 格 / 空地；穿透箭，弹道 11 格
   //   哥布林钻机：建筑 1313 血 / 每 3 秒出一个哥布林 / 10 秒；钻出地面炸 84（塔 20）
@@ -1129,19 +1143,41 @@ function resizeCanvas(){
   const wrap = document.getElementById('arenaWrap');
   const r = wrap.getBoundingClientRect();
   if (r.width < 10 || r.height < 10) return;
-  const s = Math.min(r.width / AW, r.height / AH);
-  const w = AW * s, h = AH * s;
+  const s = Math.min(r.width / AW, r.height / AH_VIEW);
+  const w = AW * s, h = AH_VIEW * s;
   cv.style.width = w + 'px';
   cv.style.height = h + 'px';
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   cv.width = Math.round(w * dpr);
   cv.height = Math.round(h * dpr);
-  ctx.setTransform(w * dpr / AW, 0, 0, h * dpr / AH, 0, 0);
+  // 世界坐标里 y=0 是「主体」的上边；上凸出那一排画在负 y，所以要整体下移一排
+  ctx.setTransform(w * dpr / AW, 0, 0, h * dpr / AH_VIEW, 0, PAD_ROW * h * dpr / AH_VIEW);
   viewScale = s;
 }
+// 这个点算不算「场地内」（主体 + 国王塔背后上下凸出的那两排）。
+//   光标滑到场地外的空白处时，不该再画落点预览（不然会飘一个红圈在草地外面）。
+// 把单位夹回场地内。场地是「凸」字形：y 落在上下凸出的那一排时，只能待在 7 格宽的凸出里。
+function clampToArena(e){
+  const r = e.radius;
+  if (e.bumpOK && (e.y < 0 || e.y > AH)){
+    e.x = clamp(e.x, BUMP_X0 + r, BUMP_X0 + BUMP_W - r);
+    e.y = clamp(e.y, -PAD_ROW + r, AH + PAD_ROW - r);
+  } else {
+    e.x = clamp(e.x, r + 4, AW - r - 4);
+    e.y = clamp(e.y, r + 4, AH - r - 4);
+  }
+}
+
+function insideArena(x, y){
+  if (x >= 0 && x <= AW && y >= 0 && y <= AH) return true;
+  const inBumpX = x >= BUMP_X0 && x <= BUMP_X0 + BUMP_W;
+  return inBumpX && ((y >= -PAD_ROW && y <= 0) || (y >= AH && y <= AH + PAD_ROW));
+}
+
 function toArena(clientX, clientY){
   const r = cv.getBoundingClientRect();
-  return { x: (clientX - r.left) / r.width * AW, y: (clientY - r.top) / r.height * AH };
+  return { x: (clientX - r.left) / r.width * AW,
+           y: (clientY - r.top) / r.height * AH_VIEW - PAD_ROW };   // 减掉上凸出那一排
 }
 function roundRect(x,y,w,h,r){
   ctx.beginPath();
@@ -1190,7 +1226,10 @@ function newGame(){
   // 塔
   const T = (team, kind, x, y)=> G.ents.push({
     id: uid++, team, kind, x, y,
-    // 占地：公主塔 3×3 格、国王塔 4×4 格 → radius 是「半边长度」
+    // 占地：公主塔 3×3、国王塔 4×4 → radius 是「半边长度」
+    //   halfW / halfH 留着给矩形占地用，现在两座塔都是正方形，和 radius 一致
+    halfW: kind === 'king' ? TILE * 2 : TILE * 1.5,
+    halfH: kind === 'king' ? TILE * 2 : TILE * 1.5,
     radius: kind === 'king' ? TILE * 2 : TILE * 1.5,
     hp: kind === 'king' ? KING_HP : PRINCESS_HP,
     maxHp: kind === 'king' ? KING_HP : PRINCESS_HP,
@@ -1256,12 +1295,19 @@ function canDeploy(team, x, y, card){
     }
     return x > 15 && x < AW - 15 && y > 15 && y < AH - 15;
   }
-  const m = 42;
-  if (x < m || x > AW - m || y < m || y > AH - m) return false;
+  // 边距只留一点点：以前留 42（≈ 1 格），结果「我方半场最后一排」整排都放不了兵，
+  //   而部署区的蓝色高亮却铺到了底边 —— 玩家看到能放、实际放不了。
+  const m = 8;
+  const inMain = x >= m && x <= AW - m && y >= m && y <= AH - m;
+  // 国王塔背后凸出来的那一排也算场地 —— 就是为了能沉底放兵
+  const inBump = x >= BUMP_X0 + m && x <= BUMP_X0 + BUMP_W - m &&
+                 ((y >= -PAD_ROW + m && y < 0) || (y > AH && y <= AH + PAD_ROW - m));
+  if (!inMain && !inBump) return false;
   // 塔是实体：不能在塔身上投放（贴着塔边放没问题，只是不能压在塔身上）
   for (const o of G.ents){
     if (!o.isTower || o.dead) continue;
-    if (Math.hypot(x - o.x, y - o.y) < o.radius + 16) return false;
+    const hw = (o.halfW || o.radius) + 16, hh = (o.halfH || o.radius) + 16;
+    if (Math.abs(x - o.x) < hw && Math.abs(y - o.y) < hh) return false;
   }
   // 掘地矿工：可以放到地图任意位置（包括敌方半场），这是他的核心机制
   if (card.deployAnywhere) return true;
@@ -1392,8 +1438,10 @@ function wedge221(x, y, team){
 
 // 亡灵 3 只：等腰三角形，**前排两个、后排一个居中**（尖角朝自己一侧）。
 //   半径 15 → 横向 ±22（底边 44）、前后各 24（高 48，两腰 52.8），收得比较紧但互不重叠。
+// 倒等边三角形（骷髅守卫 / 哥布林投矛手 / 亡灵）：前排两只、后排一只居中。
+//   底边取 1 格（44），高 = 底边 × √3/2 ≈ 38，三条边等长，才是真的等边三角形。
 function triangle3(x, y, team){
-  const dx = 22, dy = 24;
+  const dx = 22, dy = dx * Math.sqrt(3) / 2;
   const fwd = team === 'ai' ? 1 : -1;          // 「前」在 y 轴上的方向
   return [
     { x: clamp(x - dx, 34, AW - 34), y: clamp(y + fwd * dy, 34, AH - 34) },   // 前左
@@ -1418,10 +1466,27 @@ function pentagon5(x, y, team){
   return pts;
 }
 
+// 落点夹回场地内。注意场地是「凸」字形：国王塔背后那两排也要能放（沉底），
+//   不能一律夹到 34 ~ AH-34，否则凸出排里放下去的兵会被瞬间拽回主体。
+function clampSpawn(x, y){
+  const inBumpX = x >= BUMP_X0 && x <= BUMP_X0 + BUMP_W;
+  if (inBumpX && (y > AH || y < 0)){
+    const cy = y > AH ? clamp(y, AH + 12, AH + PAD_ROW - 12) : clamp(y, -PAD_ROW + 12, -12);
+    return { x: clamp(x, BUMP_X0 + 12, BUMP_X0 + BUMP_W - 12), y: cy };
+  }
+  return { x: clamp(x, 34, AW - 34), y: clamp(y, 34, AH - 34) };
+}
+
 function formation(n, x, y, team, form){
   if (form === '221') return wedge221(x, y, team);
   if (form === 'tri') return triangle3(x, y, team);
   if (form === 'penta') return pentagon5(x, y, team);
+  if (form === 'line'){                  // 一字横排（皇家野猪）
+    const sp = 44, pts = [];
+    for (let i = 0; i < n; i++)
+      pts.push({ x: clamp(x + (i - (n - 1) / 2) * sp, 34, AW - 34), y });
+    return pts;
+  }
   if (n >= 10) return ellipseFormation(n, x, y);
   const pts = [];
   const cols = Math.ceil(Math.sqrt(n));
@@ -1429,10 +1494,8 @@ function formation(n, x, y, team, form){
   let i = 0;
   for (let r = 0; r < cols && i < n; r++){
     for (let c = 0; c < cols && i < n; c++, i++){
-      pts.push({
-        x: clamp(x + (c - (cols-1)/2) * sp, 34, AW-34),
-        y: clamp(y + (r - (cols-1)/2) * sp, 34, AH - 34)
-      });
+      const p = clampSpawn(x + (c - (cols-1)/2) * sp, y + (r - (cols-1)/2) * sp);
+      pts.push(p);
     }
   }
   return pts;
@@ -1742,6 +1805,9 @@ function spawnUnit(cardId, team, x, y, lane, opts){
   const o = opts || {};
   const u = {
     id: uid++, cardId, team, x, y,
+    // 生在国王塔背后凸出那一排的兵才允许待在凸出里；主体里出生的兵不许被挤进去
+    //   （凸出排只有 1 格高，被国王塔的碰撞一挤就成死角，一群兵会卡死在那儿）
+    bumpOK: y > AH || y < 0,
     radius: c.radius, hp: c.hp, maxHp: c.hp, dmg: c.dmg, hitSpeed: c.hitSpeed,
     // 对皇家塔的伤害可以单独设（掘地矿工：打兵 194、打塔 39）
     towerDmg: c.towerDmg != null ? c.towerDmg : null,
@@ -1800,7 +1866,7 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     breaksOnHit: !!c.breaksOnHit,       // 撞到目标就散架（攻城锤）
     // 渔夫的钩子：hookMin~hookMax 之间出手，0.28 秒后把目标拽到身边，6 秒冷却
     hookMin: c.hookMin || 0, hookMax: c.hookMax || 0, hookCd: 0, hookT: 0, hookWind: 0, hookTarget: null,
-    hookVictim: null,      // 已经钩到手、正在打的那只；它死了才允许再钩
+    hookVictim: null,      // 已经钩到手的目标（单位或建筑）；它死了才允许再钩
     // 护盾（骷髅守卫）：先扣护盾再扣血；狂暴：踩在狂暴区域里的剩余刷新时间
     shield: c.shield || 0, shieldMax: c.shield || 0, rageT: 0,
     // 固定进攻路（0=左 1=右）：召唤出来的兵用召唤者的路，避免「同一点出生的两个兵各走一边」
@@ -1823,6 +1889,8 @@ function spawnBuildingAt(cardId, team, x, y, opts){
     range: c.range, targetsAir: !!c.targetsAir, buildingsOnly: false,
     splash: c.splash || 0, flying: false, cool: 0.5, rt: 0, target: null, dead: false, slowT: 0,
     minRange: c.minRange || 0,                 // 迫击炮的盲区
+    // 地狱之塔：和地狱飞龙同一套「同一目标越烧越疼」+ 换目标重锁定
+    rampTo: c.rampTo || 0, rampTicks: c.rampTicks || 10, rampN: 0, relockT: 0,
     hatchT: c.hatchT || 0, hatchInto: c.hatchInto || null,   // 凤凰蛋：孵化倒计时
     shot: c.shot || null,
     shotNoHome: !!c.shotNoHome,                // 迫击炮：炮弹不追踪
@@ -1942,6 +2010,7 @@ function summonAt(cardId, team, x, y, lane, opts){
 // ---------------- 伤害 ----------------
 function damage(e, amt, from, silent){
   if (e.dead) return;
+  if (e.hidden) return;        // 钻在地下的电磁塔：没冒头就完全免疫（和「没有仇恨」是一对）
   // 烈焰精灵扑击途中是腾空的：这段时间不可被选中，
   // 否则它一定会在落地前被近战先手打死，自爆机制等于废掉
   if (e.dash > 0) return;
@@ -2092,6 +2161,7 @@ function findTarget(u){
   for (const e of G.ents){
     if (e.dead || e.team === u.team) continue;
     if (e.cloak) continue;                 // 隐身中的皇家幽灵不能被索敌
+    if (e.hidden) continue;                // 钻在地下的电磁塔：没有仇恨，打不到也吸不到兵
     if (u.buildingsOnly){
       if (!e.isTower && !e.isBuilding) continue;
     } else {
@@ -2115,6 +2185,7 @@ function findTarget(u){
 function burrowThreat(e, aggro){
   for (const o of G.ents){
     if (o.dead || o.team === e.team) continue;
+    if (o.cloak || o.hidden) continue;       // 隐身 / 还在地下的一律不算威胁
     if (o.flying && !e.targetsAir) continue;
     if (Math.max(0, dist(o, e) - o.radius) <= aggro) return true;
   }
@@ -2722,8 +2793,8 @@ function update(dt){
     if (e.stuckT > 1.5){
       e.stuckT = 0;
       const ang = Math.atan2(tg.y - e.y, tg.x - e.x) + Math.PI / 2;
-      e.x = clamp(e.x + Math.cos(ang) * 7, e.radius + 4, AW - e.radius - 4);
-      e.y = clamp(e.y + Math.sin(ang) * 7, e.radius + 4, AH - e.radius - 4);
+      e.x += Math.cos(ang) * 7; e.y += Math.sin(ang) * 7;
+      clampToArena(e);
     }
   }
 
@@ -2750,16 +2821,16 @@ function moveStep(e, sx, sy, wp){
   e.x += sx;
   e.y += sy;
   if (e.flying){                                        // 空中单位从塔顶掠过，不参与碰撞
-    e.x = clamp(e.x, e.radius + 4, AW - e.radius - 4);
-    e.y = clamp(e.y, e.radius + 4, AH - e.radius - 4);
+    clampToArena(e);
     return;
   }
   for (const o of G.ents){
     if (!o.isTower || o.dead) continue;
-    const hw = o.radius + e.radius;
+    const hw = (o.halfW || o.radius) + e.radius;
+    const hh = (o.halfH || o.radius) + e.radius;
     const dx = e.x - o.x, dy = e.y - o.y;
-    if (Math.abs(dx) >= hw || Math.abs(dy) >= hw) continue;   // 没碰到这座塔
-    const ox = hw - Math.abs(dx), oy = hw - Math.abs(dy);
+    if (Math.abs(dx) >= hw || Math.abs(dy) >= hh) continue;   // 没碰到这座塔
+    const ox = hw - Math.abs(dx), oy = hh - Math.abs(dy);
     const len = Math.hypot(sx, sy);
     if (ox < oy){
       // 撞的是左右两面 → 沿竖直方向滑
@@ -2767,16 +2838,17 @@ function moveStep(e, sx, sy, wp){
       // 方向取「自己已经偏出的那一侧」：用路点方向会在中心线上左右来回抖
       // （向左滑 0.7px → 路点又变成在右边 → 滑回来，实测原地抖一整天）
       const dir = Math.abs(dy) > 0.5 ? Math.sign(dy) : (Math.sign(wp.y - e.y) || 1);
-      e.y += Math.abs(sy) > len * 0.15 ? sy : dir * len;
+      // 前冲分量要「明显」才用（>50% 的步长），否则一律按切向全速滑：
+      //   贴着塔角时前冲分量只有 10% 左右，用它会和推出方向来回打架，原地抖 ±1px 出不来
+      e.y += Math.abs(sy) > len * 0.5 ? sy : dir * len;
     } else {
       // 撞的是上下两面 → 沿水平方向滑
-      e.y = o.y + (dy < 0 ? -hw : hw);
+      e.y = o.y + (dy < 0 ? -hh : hh);
       const dir = Math.abs(dx) > 0.5 ? Math.sign(dx) : (Math.sign(wp.x - e.x) || 1);
-      e.x += Math.abs(sx) > len * 0.15 ? sx : dir * len;
+      e.x += Math.abs(sx) > len * 0.5 ? sx : dir * len;
     }
   }
-  e.x = clamp(e.x, e.radius + 4, AW - e.radius - 4);
-  e.y = clamp(e.y, e.radius + 4, AH - e.radius - 4);
+  clampToArena(e);
 }
 
 // 塔是实体：地面单位不能穿过塔身（飞行单位从塔顶掠过，不参与碰撞）。
@@ -2787,16 +2859,16 @@ function pushOutOfTowers(e){
   if (e.isTower || e.isBuilding || e.flying) return;
   for (const o of G.ents){
     if (!o.isTower || o.dead) continue;
-    const hw = o.radius + e.radius;
+    const hw = (o.halfW || o.radius) + e.radius;
+    const hh = (o.halfH || o.radius) + e.radius;
     const dx = e.x - o.x, dy = e.y - o.y;
-    if (Math.abs(dx) < hw && Math.abs(dy) < hw){
-      const ox = hw - Math.abs(dx), oy = hw - Math.abs(dy);
+    if (Math.abs(dx) < hw && Math.abs(dy) < hh){
+      const ox = hw - Math.abs(dx), oy = hh - Math.abs(dy);
       if (ox < oy) e.x = o.x + (dx < 0 ? -hw : hw);      // 从更浅的一侧推出去
-      else         e.y = o.y + (dy < 0 ? -hw : hw);
+      else         e.y = o.y + (dy < 0 ? -hh : hh);
     }
   }
-  e.x = clamp(e.x, e.radius + 4, AW - e.radius - 4);
-  e.y = clamp(e.y, e.radius + 4, AH - e.radius - 4);
+  clampToArena(e);
 }
 
 // 渔夫的钩子找目标：3.5~7 格内**最近的**敌方地面单位 / 建筑（跳过空中、隐身）。
@@ -2900,13 +2972,23 @@ function updateEnt(e, dt){
       //   **逐个出场**：第一个当场出，后面的按 SUMMON_STAGGER 排队，
       //   看起来是「一个接一个走出来」，而不是同一帧一起冒出来。
       const n = bc.spawnCount || 1;
+      const gap = bc.spawnStagger != null ? bc.spawnStagger : SUMMON_STAGGER;
+      // 女巫：骷髅围着她站一圈十字（上下左右各一只），不是全挤在正前方
+      const cross = bc.summonCross ? [[0,-1],[0,1],[-1,0],[1,0]] : null;
+      const cd = (bc.radius || e.radius) + 24;
       const sy = clamp(e.y + fwd * (e.radius + 16), 40, AH - 40);
       const px = clamp(e.x, 34, AW - 34);              // 两只**同一个出生点**
       const lane = e.x < AW / 2 ? 0 : 1;               // 并锁定墓碑所在的那一路
       for (let k = 0; k < n; k++){
-        if (k === 0) summonAt(bc.spawnCard, e.team, px, sy, lane);
-        else G.pending.push({ t: SUMMON_STAGGER * k, summonUnit: true,
-                              cardId: bc.spawnCard, team: e.team, x: px, y: sy, lane });
+        let ax = px, ay = sy;
+        if (cross){
+          const o = cross[k % 4];
+          ax = clamp(e.x + o[0] * cd, 30, AW - 30);
+          ay = clamp(e.y + o[1] * cd, 30, AH - 30);
+        }
+        if (k === 0) summonAt(bc.spawnCard, e.team, ax, ay, lane);
+        else G.pending.push({ t: gap * k, summonUnit: true,
+                              cardId: bc.spawnCard, team: e.team, x: ax, y: ay, lane });
       }
       G.fx.push({ type:'ring', x:e.x, y:e.y + fwd * e.radius * 0.6, r0: 5, r1: e.radius * 1.9,
                   t:0, life:0.30, color:'#cfd8ff' });
@@ -3019,7 +3101,8 @@ function updateEnt(e, dt){
   //   ③ 被打断 —— 眩晕/冰冻命中时就把 target 清掉了（见 applyStun），解控后重新索敌
   // 注意：这里刻意不再有「每 0.3s 重新选一次最近敌人」的计时器，
   // 所以身边冒出新敌人也不会把正在打的目标抢走。
-  if (!e.target || e.target.dead || dist(e, e.target) > e.range + (e.radius || 0) + e.target.radius ||
+  if (!e.target || e.target.dead || e.target.hidden ||
+      dist(e, e.target) > e.range + (e.radius || 0) + e.target.radius ||
       (e.minRange && dist(e, e.target) < e.minRange + (e.radius || 0) + e.target.radius)){
     const prev = e.target;
     e.target = findTarget(e);
@@ -3070,6 +3153,10 @@ function updateEnt(e, dt){
           e.x = clamp(o.x + Math.cos(ang) * dd, 34, AW - 34);
           e.y = clamp(o.y + Math.sin(ang) * dd, 34, AH - 34);
           G.fx.push({ type:'ring', x:e.x, y:e.y, r0: 6, r1: 32, t:0, life:0.30, color:'#9fd8f0' });
+          // 钩到建筑 = 把自己交代给这座建筑：锁定它，拆掉之前不再甩钩
+          //   （不然他会一边拆塔一边把路过的兵勾过来，来回拉扯，两边都打不死）
+          e.hookVictim = o;
+          e.target = o;
         } else {
           // 钩单位：把敌人拽到身边
           const ang = Math.atan2(o.y - e.y, o.x - e.x);
@@ -3087,7 +3174,8 @@ function updateEnt(e, dt){
     } else if ((!e.hookVictim || e.hookVictim.dead) && (e.hookCd <= 0 || e.hookVictim)){
       // 先把手上的那只打死，才轮到下一个：它还没死就一直不甩钩（哪怕冷却早好了）；
       //   它一死就无视剩余冷却，直接钩下一个。
-      //   钩的对象不一定是「当前攻击目标」：他在拆塔时，路过的敌方地面兵照样会被钩
+      //   还没钩到东西时，钩的对象不一定是「当前攻击目标」（他会先钩最近的那个）；
+      //   一旦钩到了（单位或建筑），就锁死它 —— 见 hookVictim
       const cand = findHookTarget(e);
       if (cand){
         e.hookTarget = cand;
@@ -3270,8 +3358,7 @@ function separate(){
   // 收尾：人群挤压可能把单位推出场边 / 挤进塔身，这里统一拉回（塔 / 建筑固定不动）
   for (const e of list){
     if (e.isTower || e.isBuilding) continue;
-    e.x = clamp(e.x, e.radius + 4, AW - e.radius - 4);
-    e.y = clamp(e.y, e.radius + 4, AH - e.radius - 4);
+    clampToArena(e);
     pushOutOfTowers(e);      // 分离发生在 updateEnt 之后，塔边的挤压也要再推一次
   }
 }
@@ -3550,28 +3637,49 @@ function aiUpdate(dt){
 
 // ---------------- 绘制 ----------------
 function draw(){
-  // 草地
+  // 真正清一遍画布：场地是「凸」字形，四角是透明的（露出页面底色），
+  //   以前靠「草地铺满整块画布」顺带当清屏 —— 现在铺不满了，不清的话四角会一直残留旧像素
+  //   （拖卡时那些红色/蓝色的落点预览会越叠越实，看起来像整块变红）。
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.restore();
+
+  // 草地（主体 + 国王塔背后凸出来的两排）
   ctx.fillStyle = '#7cc45f';
   ctx.fillRect(0, 0, AW, AH);
+  ctx.fillRect(BUMP_X0, -PAD_ROW, BUMP_W, PAD_ROW);   // 上凸出（敌方国王塔背后）
+  ctx.fillRect(BUMP_X0, AH, BUMP_W, PAD_ROW);         // 下凸出（我方国王塔背后）
   for (let i = 0; i < AH; i += 58){
     if (((i / 58) | 0) % 2 === 0){ ctx.fillStyle = '#76bd59'; ctx.fillRect(0, i, AW, 58); }
   }
   ctx.fillStyle = 'rgba(255,90,90,0.055)'; ctx.fillRect(0, 0, AW, RIVER_TOP);
   ctx.fillStyle = 'rgba(70,140,255,0.055)'; ctx.fillRect(0, RIVER_BOT, AW, AH - RIVER_BOT);
 
-  // 格子：淡淡一层网格（18 × 32），方便一眼估「几格」的距离。
+  // 格子：淡淡一层网格（18 × 30），方便一眼估「几格」的距离。
   //   画在河之前 —— 河道和桥会自然盖住中间那一条，看起来不像画在河面上。
   ctx.save();
   ctx.strokeStyle = 'rgba(255,255,255,0.20)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let i = 1; i < 18; i++){
+  for (let i = 1; i < Math.round(AW / TILE); i++){
     const x = Math.round(i * TILE) + 0.5;
     ctx.moveTo(x, 0); ctx.lineTo(x, AH);
   }
-  for (let j = 1; j < 32; j++){
+  for (let j = 1; j < Math.round(AH / TILE); j++){
     const y = Math.round(j * TILE) + 0.5;
     ctx.moveTo(0, y); ctx.lineTo(AW, y);
+  }
+  // 上下两排凸出的格子（7 格宽）
+  for (const [yTop, yBot] of [[-PAD_ROW, 0], [AH, AH + PAD_ROW]]){
+    for (let i = 0; i <= 7; i++){
+      const x = Math.round(BUMP_X0 + i * TILE) + 0.5;
+      ctx.moveTo(x, yTop); ctx.lineTo(x, yBot);
+    }
+    const yy = Math.round(yTop) + 0.5;
+    ctx.moveTo(BUMP_X0, yy); ctx.lineTo(BUMP_X0 + BUMP_W, yy);
+    const yb = Math.round(yBot) - 0.5;
+    ctx.moveTo(BUMP_X0, yb); ctx.lineTo(BUMP_X0 + BUMP_W, yb);
   }
   ctx.stroke();
   ctx.restore();
@@ -3619,6 +3727,8 @@ function draw(){
       ctx.fillStyle = 'rgba(90,160,255,0.20)';
       // 己方半场：桥的正中间往下
       ctx.fillRect(0, DEPLOY_LINE, AW, AH - DEPLOY_LINE);
+      // 我方国王塔背后凸出来的那一排（沉底区）
+      ctx.fillRect(BUMP_X0, AH, BUMP_W, PAD_ROW);
       // 已推掉的塔那一侧：解锁到「距公主塔 4 格」的那条线（≈ 敌方国王塔那一排）
       if (!towerAlive('ai','left'))  ctx.fillRect(0, TOWER_OPEN_ROW, AW/2, DEPLOY_LINE - TOWER_OPEN_ROW);
       if (!towerAlive('ai','right')) ctx.fillRect(AW/2, TOWER_OPEN_ROW, AW/2, DEPLOY_LINE - TOWER_OPEN_ROW);
@@ -3671,6 +3781,8 @@ function draw(){
   }
   // 血条（单位）—— 部署中按同样的缩放跟随精灵，避免"小棋子顶着大血条"
   for (const e of list){
+    // 钻在地下的电磁塔：没冒头就不画血条（打不到、也不吸仇恨，血条挂在土包上只会误导）
+    if (e.hidden) continue;
     // 建筑的生命条 = 血量 + 剩余时间，是它唯一的生命指示，所以一直显示
     if (e.isTower || (!e.isBuilding && e.hp >= e.maxHp && !(e.shield > 0))) continue;
     const sc = e.spawnT > 0 ? 0.55 + clamp(1 - e.spawnT / DEPLOY_TIME, 0, 1) * 0.45 : 1;
@@ -3681,7 +3793,7 @@ function draw(){
   for (const f of G.fx) drawFx(f);
 
   // 拖拽指示
-  if (G.hover && sel){
+  if (G.hover && sel && insideArena(G.hover.x, G.hover.y)){
     const { x, y } = G.hover;
     const c = CARDS[sel];
     const ok = canDeploy('player', x, y, c);
@@ -4011,9 +4123,11 @@ function shieldPath(cx, cy, w, h){
 //   国王塔额外镶金边、徽记加金环、脚下有金光；未激活时整体褪成灰并挂锁
 function drawTower(t){
   // 占地（碰撞）是 3×3 / 4×4，但模型不用铺满 —— 铺满会显得塔又大又笨，
-  //   只画占地的 75%，视觉上更像皇室战争里那种「塔身比底座小一圈」的感觉。
+  //   只画占地的 62%，视觉上更像皇室战争里那种「塔身比底座小一圈」的感觉。
   const ART = 0.62;
-  const s = t.radius * 2 * ART;
+  const artW = (t.halfW || t.radius) * 2 * ART;    // 模型宽
+  const artH = (t.halfH || t.radius) * 2 * ART;    // 模型高
+  const s = (artW + artH) / 2;                     // 装饰件（城垛 / 阴影 / 光环）用平均值
   const x = t.x, y = t.y;
   const isP = t.team === 'player';
   const king = t.kind === 'king';
@@ -4031,7 +4145,7 @@ function drawTower(t){
   const goldD = off ? '#7c7c7c' : '#b8860b';
 
   // —— 几何 ——
-  const bw = s, bh = s;
+  const bw = artW, bh = artH;
   const left = x - bw/2, bodyTop = y - bh/2, bodyBot = bodyTop + bh;
   const plinthH = s * 0.12, plinthW = bw * 1.18;
   const capH = s * 0.12, capW = bw * 1.13, capY = bodyTop - capH;
@@ -4251,7 +4365,8 @@ function drawTower(t){
     ctx.font = 'bold 15px "PingFang SC","Microsoft YaHei",system-ui,sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const w = ctx.measureText(label).width + 20;
-    const ly = bodyBot + plinthH * 1.45 + 14;
+    // 国王塔贴边（上下各少一行后，底线那座就贴着边框）→ 角标会被挤出场地，夹回来
+    const ly = Math.min(bodyBot + plinthH * 1.45 + 14, AH - 16);
     ctx.fillStyle = 'rgba(24,28,38,0.82)';
     roundRect(x - w/2, ly - 11, w, 22, 11); ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.lineWidth = 1.5;
