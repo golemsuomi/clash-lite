@@ -428,8 +428,8 @@ const TILE = AW / 18;               // 1 格 ≈ 44.44 战场单位
 const AH = Math.round(TILE * 30);   // 1333 = 18 × 30 格（主体）
 // 国王塔背后还各多出一排草地：7 格宽、1 格高、居中 → 整块场地是「凸」字形
 const PAD_ROW = TILE;                 // 凸出来的那一排有多高（1 格）
-const BUMP_W  = TILE * 7;             // 凸出来的宽度（7 格）
-const BUMP_X0 = AW / 2 - BUMP_W / 2;  // 凸出部分的左边界
+const BUMP_W  = TILE * 6;             // 凸出来的宽度（6 格，正好压在格线上：第 6~12 格）
+const BUMP_X0 = AW / 2 - BUMP_W / 2;  // 凸出部分的左边界（= 第 6 格线）
 const AH_VIEW = AH + PAD_ROW * 2;     // 画布的世界高度（含上下两排凸出）
 
 // 纵向坐标（塔位、河）本来就是按「格」摆的，横向尺子没变 → 绝对值保持不变，不再做纵向拉伸
@@ -461,6 +461,13 @@ const FIRST_HIT_DELAY = 0.7;
 //   用 0.7 秒的话，3 个骷髅在塔下一发都打不出（塔 0.8 秒一发、一发一个），
 //   飞桶不解只剩 500 伤害 —— 和皇室战争的手感差很远。
 const FIRST_HIT_BUILDING = 0.35;
+// 公主塔：锁定目标后 0.5 秒才打出第一下（国王塔不读招，锁上就打）。
+//   塔不吃「首次出手速度」那张表，这两座塔的数值单独定。
+const TOWER_FIRST_HIT = 0.5;
+// 被塔身顶出去时，每帧最多移动这么多。直接「瞬移到塔外」在塔缝里会被挤成抽搐：
+//   一堆兵互相推挤 → 有的被挤进塔里 → 下一帧整段弹出去（实测单帧 16px）。
+//   限制成每帧 5px 后，看起来是「被挤着滑出来」，不再有那种弹跳感。
+const MAX_PUSH = 5;
 // 召唤出来的兵（骷髅墓碑 / 哥布林飞桶 / 野蛮人滚筒 / 墓碑亡语）不走「手里放下」那 1 秒：
 //   它们是从桶里、坟里蹦出来的，只给 0.25 秒破壳动画就参战。
 //   否则塔会在这 1 秒里白打两发 —— 飞桶不解时只剩 500 点伤害，和皇室战争差一大截。
@@ -518,48 +525,48 @@ const KING_HP     = 4824, KING_DMG     = 109, KING_HS     = 1.0, KING_RANGE  = R
 //   game id 保持原样不变（spearGoblins / babyDragon / bomber / arrows / valkyrie），只改 name 字段。
 // 【未在表中给出的字段】费用 cost / 溅射半径 splash / 棋子半径 radius / 配色 —— 保持原值不变
 const CARDS = {
-  knight:      { name:'骑士',        cost:3, type:'troop', count:1, hp:1766, dmg:202, hitSpeed:1.2, speed:SP_MED,   range:R_MELEE_M, radius:22, glyph:'🛡️', c1:'#6b7fb5', c2:'#46578f', targetsAir:false, desc:'皮糙肉厚的近战坦克（DPS 168）' },
-  archers:     { name:'弓箭手',      cost:3, type:'troop', count:2, hp:304,  dmg:112, hitSpeed:0.9, speed:SP_MED,   range:RG(5),     radius:16, glyph:'🏹', c1:'#58c08a', c2:'#2f8a5c', targetsAir:true, shot:'arrow', desc:'两名远程射手，可打空中（DPS 124）' },
-  giant:       { name:'巨人',        cost:5, type:'troop', count:1, hp:3968, dmg:253, hitSpeed:1.5, speed:SP_SLOW,  range:R_MELEE_M, radius:30, glyph:'🗿', c1:'#c9a06a', c2:'#96703f', targetsAir:false, buildingsOnly:true, noKnockback:true, desc:'只攻击建筑的高血坦克（DPS 168）' },
-  minions:     { name:'亡灵',        cost:3, type:'troop', count:3, hp:230,  dmg:107, hitSpeed:1.2, speed:SP_FAST,  range:RG(2.5),   radius:15, glyph:'👻', c1:'#9b6bd6', c2:'#6a3fa8', targetsAir:true, flying:true, form:'tri', desc:'三只飞行单位，落地摆成等腰三角形（前排两个、后排一个居中），攻守兼备（DPS 89）' },
-  musketeer:   { name:'火枪手',      cost:4, type:'troop', count:1, hp:721,  dmg:217, hitSpeed:1.0, speed:SP_MED,   range:RG(6),     radius:18, glyph:'🔫', c1:'#d98a4a', c2:'#a35c22', targetsAir:true, shot:'bullet', desc:'高单体伤害的远程射手（DPS 217）' },
-  barbarians:  { name:'野蛮人',      cost:5, type:'troop', count:5, hp:716,  dmg:192, hitSpeed:1.4, speed:SP_MED,   range:R_MELEE_S, radius:18, glyph:'🪓', c1:'#d4a03c', c2:'#9c7015', targetsAir:false, form:'221', desc:'五个近战，落地排成 2-2-1（前两、中两、后一居中），围杀坦克（DPS 137）' },
-  spearGoblins:{ name:'哥布林投矛手',cost:2, type:'troop', count:3, form:'tri', hp:133,  dmg:81,  hitSpeed:1.6, speed:SP_VFAST, range:RG(5),     radius:15, glyph:'🔱', c1:'#7fbf4a', c2:'#4f8a24', targetsAir:true,  shot:'spear', desc:'便宜好用的三个远程（DPS 51）' },
-  skeletons:   { name:'骷髅兵',      cost:1, type:'troop', count:3, hp:81,   dmg:81,  hitSpeed:1.1, speed:SP_FAST,  range:R_MELEE_S, radius:14, glyph:'💀', c1:'#b9b9c4', c2:'#7f7f8f', targetsAir:false, desc:'一费三个，用来牵制（DPS 74）' },
-  valkyrie:    { name:'瓦基里武神',  cost:4, type:'troop', count:1, hp:1907, dmg:266, hitSpeed:1.5, speed:SP_MED,   range:R_MELEE_M, radius:22, glyph:'⚔️', c1:'#e0725a', c2:'#a8412c', targetsAir:false, spin:true, desc:'360° 旋斩，一刀打周围一圈敌人，清小兵（DPS 177）' },
-  hogRider:    { name:'野猪骑士',    cost:4, type:'troop', count:1, hp:1697, dmg:317, hitSpeed:1.6, speed:SP_VFAST, range:R_MELEE_S, radius:22, glyph:'🐗', c1:'#c47a5a', c2:'#8f4f34', targetsAir:false, buildingsOnly:true, jumpRiver:true, desc:'高速只打建筑，可跳河，偷塔核心（DPS 198）' },
-  wizard:      { name:'法师',        cost:5, type:'troop', count:1, hp:755,  dmg:304, hitSpeed:1.4, speed:SP_MED,   range:RG(5.5),   radius:18, glyph:'🧙', c1:'#5aa8e0', c2:'#2a6ea8', targetsAir:true, splash:68, shot:'magic', desc:'远程范围伤害，怕近身（DPS 217）' },
-  babyDragon:  { name:'飞龙宝宝',    cost:4, type:'troop', count:1, hp:1152, dmg:168, hitSpeed:1.5, speed:SP_FAST,  range:RG(3.5),   radius:24, glyph:'🐉', c1:'#6fd0c0', c2:'#2f9a8a', targetsAir:true, flying:true, splash:74, shot:'flame', desc:'飞行范围伤害，难被近战打到（DPS 112）' },
-  miniPekka:   { name:'迷你皮卡',    cost:4, type:'troop', count:1, hp:1390, dmg:755, hitSpeed:1.6, speed:SP_FAST,  range:R_MELEE_S, radius:22, glyph:'🤖', c1:'#8a7fd6', c2:'#4f45a8', targetsAir:false, desc:'单体爆发极高，切坦克（DPS 472）' },
-  pekka:       { name:'皮卡超人',    cost:7, type:'troop', count:1, hp:3760, dmg:842, hitSpeed:1.8, speed:SP_SLOW,  range:R_MELEE_M, radius:29, glyph:'👹', c1:'#6a4fa8', c2:'#3a2570', targetsAir:false, desc:'七费巨兽，一刀一个（DPS 468）' },
-  bomber:      { name:'炸弹兵',      cost:2, type:'troop', count:1, hp:304,  dmg:212, hitSpeed:1.8, speed:SP_MED,   range:RG(4.5),   radius:17, glyph:'💣', c1:'#e0a05a', c2:'#a86a24', targetsAir:false, splash:66, shot:'bomb', desc:'便宜的地面范围伤害（DPS 118）' },
-  cannon:      { name:'加农炮',      cost:3, type:'building', hp:824,  dmg:202, hitSpeed:1.0, range:RG(5.5), radius:27, glyph:'💥', c1:'#8f8f9a', c2:'#5a5a66', targetsAir:false, lifetime:30, shot:'cannonball', desc:'建筑，只打地面；血量和持续时间共用一条生命条，约 30 秒耗尽（DPS 202）' },
-  tesla:       { name:'电磁塔',      cost:4, type:'building', hp:1182, dmg:220, hitSpeed:1.1, range:RG(5.5), radius:27, glyph:'🗼', c1:'#d6c04a', c2:'#9a8420', targetsAir:true,  lifetime:25, burrow:true, shot:'zap', desc:'建筑，可打空中；血量和持续时间共用一条生命条，约 25 秒耗尽；平时钻在地下，敌人进入射程才升起，钻地时免疫法术（DPS 200）' },
+  knight:      { name:'骑士',        cost:3, type:'troop', firstHit:0.5, count:1, hp:1766, dmg:202, hitSpeed:1.2, speed:SP_MED,   range:R_MELEE_M, radius:22, glyph:'🛡️', c1:'#6b7fb5', c2:'#46578f', targetsAir:false, desc:'皮糙肉厚的近战坦克（DPS 168）' },
+  archers:     { name:'弓箭手',      cost:3, type:'troop', firstHit:0.1, count:2, hp:304,  dmg:112, hitSpeed:0.9, speed:SP_MED,   range:RG(5),     radius:16, glyph:'🏹', c1:'#58c08a', c2:'#2f8a5c', targetsAir:true, shot:'arrow', desc:'两名远程射手，可打空中（DPS 124）' },
+  giant:       { name:'巨人',        cost:5, type:'troop', firstHit:0.5, count:1, hp:3968, dmg:253, hitSpeed:1.5, speed:SP_SLOW,  range:R_MELEE_M, radius:30, glyph:'🗿', c1:'#c9a06a', c2:'#96703f', targetsAir:false, buildingsOnly:true, noKnockback:true, desc:'只攻击建筑的高血坦克（DPS 168）' },
+  minions:     { name:'亡灵',        cost:3, type:'troop', firstHit:0.5, count:3, hp:230,  dmg:107, hitSpeed:1.2, speed:SP_FAST,  range:RG(2.5),   radius:15, glyph:'👻', c1:'#9b6bd6', c2:'#6a3fa8', targetsAir:true, flying:true, form:'tri', desc:'三只飞行单位，落地摆成等腰三角形（前排两个、后排一个居中），攻守兼备（DPS 89）' },
+  musketeer:   { name:'火枪手',      cost:4, type:'troop', firstHit:0.8, count:1, hp:721,  dmg:217, hitSpeed:1.0, speed:SP_MED,   range:RG(6),     radius:18, glyph:'🔫', c1:'#d98a4a', c2:'#a35c22', targetsAir:true, shot:'bullet', desc:'高单体伤害的远程射手（DPS 217）' },
+  barbarians:  { name:'野蛮人',      cost:5, type:'troop', firstHit:0.4, count:5, hp:716,  dmg:192, hitSpeed:1.4, speed:SP_MED,   range:R_MELEE_S, radius:18, glyph:'🪓', c1:'#d4a03c', c2:'#9c7015', targetsAir:false, form:'221', desc:'五个近战，落地排成 2-2-1（前两、中两、后一居中），围杀坦克（DPS 137）' },
+  spearGoblins:{ name:'哥布林投矛手',cost:2, type:'troop', firstHit:0.5, count:3, form:'tri', hp:133,  dmg:81,  hitSpeed:1.6, speed:SP_VFAST, range:RG(5),     radius:15, glyph:'🔱', c1:'#7fbf4a', c2:'#4f8a24', targetsAir:true,  shot:'spear', desc:'便宜好用的三个远程（DPS 51）' },
+  skeletons:   { name:'骷髅兵',      cost:1, type:'troop', firstHit:0.5, count:3, hp:81,   dmg:81,  hitSpeed:1.1, speed:SP_FAST,  range:R_MELEE_S, radius:14, glyph:'💀', c1:'#b9b9c4', c2:'#7f7f8f', targetsAir:false, desc:'一费三个，用来牵制（DPS 74）' },
+  valkyrie:    { name:'瓦基里武神',  cost:4, type:'troop', firstHit:0.1, count:1, hp:1907, dmg:266, hitSpeed:1.5, speed:SP_MED,   range:R_MELEE_M, radius:22, glyph:'⚔️', c1:'#e0725a', c2:'#a8412c', targetsAir:false, spin:true, desc:'360° 旋斩，一刀打周围一圈敌人，清小兵（DPS 177）' },
+  hogRider:    { name:'野猪骑士',    cost:4, type:'troop', firstHit:0.6, count:1, hp:1697, dmg:317, hitSpeed:1.6, speed:SP_VFAST, range:R_MELEE_S, radius:22, glyph:'🐗', c1:'#c47a5a', c2:'#8f4f34', targetsAir:false, buildingsOnly:true, jumpRiver:true, desc:'高速只打建筑，可跳河，偷塔核心（DPS 198）' },
+  wizard:      { name:'法师',        cost:5, type:'troop', firstHit:0.4, count:1, hp:755,  dmg:304, hitSpeed:1.4, speed:SP_MED,   range:RG(5.5),   radius:18, glyph:'🧙', c1:'#5aa8e0', c2:'#2a6ea8', targetsAir:true, splash:68, shot:'magic', desc:'远程范围伤害，怕近身（DPS 217）' },
+  babyDragon:  { name:'飞龙宝宝',    cost:4, type:'troop', firstHit:0.3, count:1, hp:1152, dmg:168, hitSpeed:1.5, speed:SP_FAST,  range:RG(3.5),   radius:24, glyph:'🐉', c1:'#6fd0c0', c2:'#2f9a8a', targetsAir:true, flying:true, splash:74, shot:'flame', desc:'飞行范围伤害，难被近战打到（DPS 112）' },
+  miniPekka:   { name:'迷你皮卡',    cost:4, type:'troop', firstHit:0.4, count:1, hp:1390, dmg:755, hitSpeed:1.6, speed:SP_FAST,  range:R_MELEE_S, radius:22, glyph:'🤖', c1:'#8a7fd6', c2:'#4f45a8', targetsAir:false, desc:'单体爆发极高，切坦克（DPS 472）' },
+  pekka:       { name:'皮卡超人',    cost:7, type:'troop', firstHit:0.5, count:1, hp:3760, dmg:842, hitSpeed:1.8, speed:SP_SLOW,  range:R_MELEE_M, radius:29, glyph:'👹', c1:'#6a4fa8', c2:'#3a2570', targetsAir:false, desc:'七费巨兽，一刀一个（DPS 468）' },
+  bomber:      { name:'炸弹兵',      cost:2, type:'troop', firstHit:0.2, count:1, hp:304,  dmg:212, hitSpeed:1.8, speed:SP_MED,   range:RG(4.5),   radius:17, glyph:'💣', c1:'#e0a05a', c2:'#a86a24', targetsAir:false, splash:66, shot:'bomb', desc:'便宜的地面范围伤害（DPS 118）' },
+  cannon:      { name:'加农炮',      cost:3, type:'building', firstHit:0.7, hp:824,  dmg:202, hitSpeed:1.0, range:RG(5.5), radius:27, glyph:'💥', c1:'#8f8f9a', c2:'#5a5a66', targetsAir:false, lifetime:30, shot:'cannonball', desc:'建筑，只打地面；血量和持续时间共用一条生命条，约 30 秒耗尽（DPS 202）' },
+  tesla:       { name:'电磁塔',      cost:4, type:'building', firstHit:0.5, hp:1182, dmg:220, hitSpeed:1.1, range:RG(5.5), radius:27, glyph:'🗼', c1:'#d6c04a', c2:'#9a8420', targetsAir:true,  lifetime:25, burrow:true, shot:'zap', desc:'建筑，可打空中；血量和持续时间共用一条生命条，约 25 秒耗尽；平时钻在地下，敌人进入射程才升起，钻地时免疫法术（DPS 200）' },
   fireball:    { name:'火球',        cost:4, type:'spell', dmg:688, towerDmg:159, spellRadius:RG(2.5), projSpeed:RG(600/60), projKind:'fire', knockback:46, glyph:'🔥', c1:'#e06a3a', c2:'#a83a15', desc:'范围法术，半径 2.5 格，秒杀脆皮；飞行速度 600 格/分（10 格/秒）' },
   arrows:      { name:'万箭齐发',    cost:3, type:'spell', dmg:122, towerDmg:25,  spellRadius:RG(3.5), waves:3, waveGap:0.32, projSpeed:RG(1100/60), projKind:'arrow', glyph:'🎯', c1:'#8fa86a', c2:'#5a7040', desc:'大范围法术，半径 3.5 格；分 3 波落下，每波 122 伤害（合计 366），清小兵；飞行速度 1100 格/分（约 18.3 格/秒）' },
   // —— 以下 4 张按《皇室战争卡牌数值.xlsx》末尾新增行实现 ——
-  skeletonArmy: { name:'骷髅军团',   cost:3, type:'troop', count:15, hp:81,  dmg:81,  hitSpeed:1.1, speed:SP_FAST,  range:R_MELEE_S, radius:14, glyph:'☠️', c1:'#8b8ba6', c2:'#4f4f66', targetsAir:false, desc:'15 只骷髅一拥而上，围杀坦克和野猪（每只 DPS 74）' },
-  megaMinion:   { name:'重甲亡灵',   cost:3, type:'troop', count:1,  hp:834, dmg:312, hitSpeed:1.5, speed:SP_MED,   range:R_MELEE_L, radius:22, glyph:'👿', c1:'#6d7fa8', c2:'#39486b', targetsAir:true, flying:true, desc:'飞行重甲，近战距离长，单体爆发高（DPS 208）' },
-  fireSpirit:   { name:'烈焰精灵',   cost:1, type:'troop', count:1,  hp:215, dmg:215, hitSpeed:1.0, speed:SP_VFAST, range:RG(2.5), radius:15, glyph:'🧨', c1:'#ff9a3a', c2:'#c2470f', targetsAir:true, suicide:true, blast:RG(1.6), desc:'一费自爆单位，进入射程就扑向目标炸开，一圈 215 范围伤害' },
+  skeletonArmy: { name:'骷髅军团',   cost:3, type:'troop', firstHit:0.5, count:15, hp:81,  dmg:81,  hitSpeed:1.1, speed:SP_FAST,  range:R_MELEE_S, radius:14, glyph:'☠️', unitGlyph:'💀', c1:'#8b8ba6', c2:'#4f4f66', targetsAir:false, desc:'15 只骷髅一拥而上，围杀坦克和野猪（每只 DPS 74）' },
+  megaMinion:   { name:'重甲亡灵',   cost:3, type:'troop', firstHit:0.4, count:1,  hp:834, dmg:312, hitSpeed:1.5, speed:SP_MED,   range:R_MELEE_L, radius:22, glyph:'👿', c1:'#6d7fa8', c2:'#39486b', targetsAir:true, flying:true, desc:'飞行重甲，近战距离长，单体爆发高（DPS 208）' },
+  fireSpirit:   { name:'烈焰精灵',   cost:1, type:'troop', firstHit:0.2, count:1,  hp:215, dmg:215, hitSpeed:1.0, speed:SP_VFAST, range:RG(2.5), radius:15, glyph:'🧨', c1:'#ff9a3a', c2:'#c2470f', targetsAir:true, suicide:true, blast:RG(1.6), desc:'一费自爆单位，进入射程就扑向目标炸开，一圈 215 范围伤害' },
   // —— 精灵三兄弟 + 哥布林（数值表末尾第二批新增行）——
-  iceSpirit:     { name:'冰雪精灵', cost:1, type:'troop', count:1, hp:215, dmg:110, hitSpeed:1.0, speed:SP_VFAST, range:RG(2.5), radius:15, glyph:'❄️', c1:'#7fd6f2', c2:'#2b7fb0', targetsAir:true, suicide:true, blast:RG(1.6), freeze:1.1, desc:'一费自爆单位，扑到目标炸开，110 范围伤害并冰冻 1.1 秒' },
-  healSpirit:    { name:'治疗精灵', cost:1, type:'troop', count:1, hp:215, dmg:110, hitSpeed:1.0, speed:SP_VFAST, range:RG(2.5), radius:15, glyph:'💚', c1:'#2f9e6e', c2:'#0d4028', targetsAir:true, suicide:true, blast:RG(2.0), healAmt:400, healDur:1.0, desc:'一费自爆单位，炸开时对敌人 110 伤害，同时让范围内友军 1 秒内回复 400 生命' },
-  electroSpirit: { name:'雷电精灵', cost:1, type:'troop', count:1, hp:215, dmg:99,  hitSpeed:1.0, speed:SP_VFAST, range:RG(2.5), radius:15, glyph:'✨', c1:'#6a4fe0', c2:'#221a6e', targetsAir:true, suicide:true, blast:RG(2.0), chainMax:9, chainGap:0.25, stun:0.5, desc:'一费自爆单位，炸开时电弧按 0.25 秒一跳连锁，最多 9 个目标，各 99 伤害并眩晕 0.5 秒' },
-  goblin:        { name:'哥布林',   cost:2, type:'troop', count:4, hp:202, dmg:125, hitSpeed:1.1, speed:SP_VFAST, range:R_MELEE_S, radius:15, glyph:'👺', c1:'#8fd45a', c2:'#3f7a1c', targetsAir:false, desc:'四个快速近战哥布林，贴身围杀（每只 DPS 113）' },
+  iceSpirit:     { name:'冰雪精灵', cost:1, type:'troop', firstHit:0.2, count:1, hp:215, dmg:110, hitSpeed:1.0, speed:SP_VFAST, range:RG(2.5), radius:15, glyph:'❄️', c1:'#7fd6f2', c2:'#2b7fb0', targetsAir:true, suicide:true, blast:RG(1.6), freeze:1.1, desc:'一费自爆单位，扑到目标炸开，110 范围伤害并冰冻 1.1 秒' },
+  healSpirit:    { name:'治疗精灵', cost:1, type:'troop', firstHit:0.2, count:1, hp:215, dmg:110, hitSpeed:1.0, speed:SP_VFAST, range:RG(2.5), radius:15, glyph:'💚', c1:'#2f9e6e', c2:'#0d4028', targetsAir:true, suicide:true, blast:RG(2.0), healAmt:400, healDur:1.0, desc:'一费自爆单位，炸开时对敌人 110 伤害，同时让范围内友军 1 秒内回复 400 生命' },
+  electroSpirit: { name:'雷电精灵', cost:1, type:'troop', firstHit:0.2, count:1, hp:215, dmg:99,  hitSpeed:1.0, speed:SP_VFAST, range:RG(2.5), radius:15, glyph:'✨', c1:'#6a4fe0', c2:'#221a6e', targetsAir:true, suicide:true, blast:RG(2.0), chainMax:9, chainGap:0.25, stun:0.5, desc:'一费自爆单位，炸开时电弧按 0.25 秒一跳连锁，最多 9 个目标，各 99 伤害并眩晕 0.5 秒' },
+  goblin:        { name:'哥布林',   cost:2, type:'troop', firstHit:0.2, count:4, hp:202, dmg:125, hitSpeed:1.1, speed:SP_VFAST, range:R_MELEE_S, radius:15, glyph:'👺', c1:'#8fd45a', c2:'#3f7a1c', targetsAir:false, desc:'四个快速近战哥布林，贴身围杀（每只 DPS 113）' },
   lightning:    { name:'雷电法术',   cost:6, type:'spell', dmg:1056, towerDmg:265, spellRadius:RG(3.5), maxTargets:3, stun:0.5, strikeGap:0.15, glyph:'🌩️', c1:'#7d8fd8', c2:'#3b4a88', desc:'半径 3.5 格，锁定范围内血量最高的 3 个目标，三道雷依次劈下，各 1056 伤害并眩晕 0.5 秒' },
   // —— 第四批：蝙蝠 / 戈仑冰人 / 电击法术 / 大雪球（数值表最新 4 行）——
   //   蝙蝠 81/81/1.2s 极快 近战:中 空+地 ×5（飞行）；戈仑冰人 1228/84/2.5s 慢 近战:短 只打建筑，
   //   亡语 84 伤害 + 2s 减速；电击 192/48 半径 2.5 眩晕 0.5s；大雪球 179/45 半径 2.5 减速 3s + 击退
-  bats:      { name:'蝙蝠',      cost:2, type:'troop', count:5, hp:81,   dmg:81,  hitSpeed:1.2, speed:SP_VFAST, range:R_MELEE_M, radius:12, glyph:'🦇', c1:'#8f7ad6', c2:'#43307a', targetsAir:true, flying:true, form:'penta', desc:'五只极快的飞行近战，落地摆成正五边形，围杀单体（每只 DPS 67，五只合计 337）' },
-  iceGolem:  { name:'戈仑冰人',  cost:2, type:'troop', count:1, hp:1228, dmg:84,  hitSpeed:2.5, speed:SP_SLOW,  range:R_MELEE_S, radius:24, glyph:'🧊', c1:'#7fc8e8', c2:'#2f6f9a', targetsAir:false, buildingsOnly:true, deathDmg:84, deathBlast:RG(1.6), deathSlow:2, desc:'只打建筑的便宜坦克（DPS 33）；死亡时炸开 84 伤害，并让附近敌人减速 2 秒' },
+  bats:      { name:'蝙蝠',      cost:2, type:'troop', firstHit:0.6, count:5, hp:81,   dmg:81,  hitSpeed:1.2, speed:SP_VFAST, range:R_MELEE_M, radius:12, glyph:'🦇', c1:'#8f7ad6', c2:'#43307a', targetsAir:true, flying:true, form:'penta', desc:'五只极快的飞行近战，落地摆成正五边形，围杀单体（每只 DPS 67，五只合计 337）' },
+  iceGolem:  { name:'戈仑冰人',  cost:2, type:'troop', firstHit:1, count:1, hp:1228, dmg:84,  hitSpeed:2.5, speed:SP_SLOW,  range:R_MELEE_S, radius:24, glyph:'🧊', c1:'#7fc8e8', c2:'#2f6f9a', targetsAir:false, buildingsOnly:true, deathDmg:84, deathBlast:RG(1.6), deathSlow:2, desc:'只打建筑的便宜坦克（DPS 33）；死亡时炸开 84 伤害，并让附近敌人减速 2 秒' },
   zap:       { name:'电击法术',  cost:2, type:'spell', dmg:192, towerDmg:48, spellRadius:RG(2.5), stun:0.5, zapBurst:true, glyph:'⚡', c1:'#ffe066', c2:'#b8860b', desc:'半径 2.5 格，瞬发；圈内所有敌人 192 伤害并眩晕 0.5 秒（打塔 48）' },
   snowball:  { name:'大雪球',    cost:2, type:'spell', dmg:179, towerDmg:45, spellRadius:RG(2.5), slow:3, knockback:46, projSpeed:RG(600/60), projKind:'snow', glyph:'⛄', c1:'#bfe8ff', c2:'#5f9ac8', desc:'半径 2.5 格，飞行雪球；179 伤害、击退，并让敌人减速 3 秒（打塔 45）' },
   // —— 第五批：狂战士 / 攻城炸弹人 / 滚木 / 野蛮人滚筒（数值表最新 4 行）——
-  berserker:    { name:'狂战士',    cost:2, type:'troop', count:1, hp:896, dmg:102, hitSpeed:0.6, speed:SP_FAST, range:R_MELEE_S, radius:20, glyph:'🗡️', c1:'#d97a52', c2:'#8a3a1c', targetsAir:false, desc:'0.6 秒一刀的快刀手，贴身输出极高（DPS 170）' },
+  berserker:    { name:'狂战士',    cost:2, type:'troop', firstHit:0.5, count:1, hp:896, dmg:102, hitSpeed:0.6, speed:SP_FAST, range:R_MELEE_S, radius:20, glyph:'🗡️', c1:'#d97a52', c2:'#8a3a1c', targetsAir:false, desc:'0.6 秒一刀的快刀手，贴身输出极高（DPS 170）' },
     // 攻城炸弹人的速度比通用「极快」档再快 25%（2.5 格/秒）：按 2 格/秒从桥头跑到塔前要 4.5 秒
   // （含落地 1 秒），公主塔 1.8 秒开始射击、4.2 秒就能用第 4 发点死第一只，两只只有一只炸得到。
   // 皇室战争里无人防守时两只都能炸到塔，所以给它们一个冲刺速度，正好在第四发前落地。
-  wallBreakers: { name:'攻城炸弹人', cost:2, type:'troop', count:2, hp:330, dmg:302, hitSpeed:1.0, speed:SP_VFAST * 1.25, range:R_MELEE_S, radius:16, glyph:'🎆', c1:'#e0b04a', c2:'#8a5a12', targetsAir:false, buildingsOnly:true, suicide:true, blast:RG(1.5), desc:'两只极快的自爆单位，只冲建筑；撞上就炸，302 范围伤害' },
+  wallBreakers: { name:'攻城炸弹人', cost:2, type:'troop', firstHit:0.2, count:2, hp:330, dmg:302, hitSpeed:1.0, speed:SP_VFAST * 1.25, range:R_MELEE_S, radius:16, glyph:'🎆', c1:'#e0b04a', c2:'#8a5a12', targetsAir:false, buildingsOnly:true, suicide:true, blast:RG(1.5), desc:'两只极快的自爆单位，只冲建筑；撞上就炸，302 范围伤害' },
   log:          { name:'滚木',      cost:2, type:'spell', dmg:268, towerDmg:35, rollWidth:RG(3.9), rollDist:RG(10.1), rollSpeed:RG(430/60), knockback:40, rollKind:'log', spellRadius:RG(2), glyph:'🪵', c1:'#a8763e', c2:'#5f3a16', desc:'向敌方滚 10.1 格，碾过路径上的地面单位：268 伤害并击退（塔 35）' },
   barbBarrel:   { name:'野蛮人滚筒', cost:2, type:'spell', dmg:215, rollWidth:RG(2.6), rollDist:RG(4.5), rollSpeed:RG(360/60), rollKind:'barrel', spellRadius:RG(1.6), spawnAfter:'barbarians', glyph:'🛢️', c1:'#b08a4a', c2:'#6a4a18', desc:'向敌方滚 4.5 格，碾过地面单位 215 伤害；滚完从桶里钻出一个野蛮人（对塔无效）' },
   // —— 第六批：狂暴法术 / 哥布林飞桶 / 骷髅墓碑 / 骷髅守卫（数值表最新 4 行）——
@@ -570,36 +577,36 @@ const CARDS = {
   rage:        { name:'狂暴法术',   cost:2, type:'spell', dmg:179, towerDmg:46, spellRadius:RG(3), rageDur:4.5, glyph:'🌀', c1:'#c86ae0', c2:'#7a2a9a', desc:'半径 3 格，179 伤害（塔 46）；4.5 秒内区域里的己方单位移动与攻击速度 +30%' },
   goblinBarrel:{ name:'哥布林飞桶', cost:3, type:'spell', spellRadius:RG(1.5), spawnTroops:'goblin', spawnCount:3, projSpeed:RG(800/60), projKind:'barrel', glyph:'🪂', c1:'#8fbf4a', c2:'#4f7a1c', desc:'飞向目标点砸开，召唤 3 个哥布林（呈三角形分布）；本身不造成伤害' },
   tombstone:   { name:'骷髅墓碑',   cost:3, type:'building', hp:529, dmg:0, hitSpeed:1, range:RG(0), radius:26, glyph:'🪦', c1:'#9a8fb0', c2:'#4f4566', lifetime:30, spawnEvery:4, spawnCard:'skeletons', spawnCount:2, deathSpawn:4, desc:'建筑，落地立刻召唤 2 个骷髅兵，之后每 4 秒再召唤 2 个，持续 30 秒；被摧毁时额外召唤 4 个' },
-  guards:      { name:'骷髅守卫',   cost:3, type:'troop', count:3, form:'tri', hp:81, shield:256, dmg:117, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_L, radius:15, glyph:'🦴', c1:'#b9b9c4', c2:'#5f5f7a', targetsAir:false, desc:'三只骷髅，护盾可完整挡下一次任意大小的伤害（DPS 117）' },
+  guards:      { name:'骷髅守卫',   cost:3, type:'troop', firstHit:0.4, count:3, form:'tri', hp:81, shield:256, dmg:117, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_L, radius:15, glyph:'🦴', c1:'#b9b9c4', c2:'#5f5f7a', targetsAir:false, desc:'三只骷髅，护盾可完整挡下一次任意大小的伤害（DPS 117）' },
   // —— 第七批：哥布林团伙 / 骷髅气球 / 吹箭哥布林 / 藤蔓法术（数值表最新 4 行）——
   //   团伙：前排 3 个哥布林 + 后排 3 个哥布林投矛手（两种兵一起出，见 doSpawn 的特例）
   //   骷髅气球：523 血 / 快 / 飞行且只打建筑 / 被打爆或撞塔时 163 范围伤害 + 掉 7 个骷髅
   //   吹箭哥布林：261 / 143 / 0.8s / 极快 / 6.5 格 / 打空地
   //   藤蔓：153 每秒（塔 35）半径 2.5 / 持续 2 秒 / 最多定身 3 个 / 把飞行单位拽到地面
-  goblinGang:  { name:'哥布林团伙', cost:3, type:'troop', count:6, hp:202, dmg:125, hitSpeed:1.1, speed:SP_VFAST, range:R_MELEE_S, radius:15, glyph:'👥', c1:'#8fd45a', c2:'#3f7a1c', targetsAir:false, desc:'前排 3 个哥布林、后排 3 个哥布林投矛手，一次铺开两种兵' },
-  skeletonBarrel:{ name:'骷髅气球', cost:3, type:'troop', count:1, hp:523, dmg:0, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_S, radius:26, glyph:'🪣', c1:'#d8cfb4', c2:'#7a6f58', targetsAir:false, flying:true, buildingsOnly:true, suicide:true, blast:RG(1.6), deathDmg:163, deathBlast:RG(1.6), deathSpawn:7, spawnCard:'skeletons', deathSpawnFan:true, desc:'飞行，只打建筑；撞到塔或被击落时炸开 163 范围伤害，并掉出 7 个骷髅兵' },
-  dartGoblin:  { name:'吹箭哥布林', cost:3, type:'troop', count:1, hp:261, dmg:143, hitSpeed:0.8, speed:SP_VFAST, range:RG(6.5), radius:16, glyph:'🪶', c1:'#9ad44a', c2:'#4f7a1c', targetsAir:true, shot:'dart', desc:'0.8 秒一发的远程吹箭，射程 6.5 格，能打空中（DPS 179）' },
+  goblinGang:  { name:'哥布林团伙', cost:3, type:'troop', firstHit:0.2, count:6, hp:202, dmg:125, hitSpeed:1.1, speed:SP_VFAST, range:R_MELEE_S, radius:15, glyph:'👥', c1:'#8fd45a', c2:'#3f7a1c', targetsAir:false, desc:'前排 3 个哥布林、后排 3 个哥布林投矛手，一次铺开两种兵' },
+  skeletonBarrel:{ name:'骷髅气球', cost:3, type:'troop', firstHit:0.1, count:1, hp:523, dmg:0, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_S, radius:26, glyph:'🪣', c1:'#d8cfb4', c2:'#7a6f58', targetsAir:false, flying:true, buildingsOnly:true, suicide:true, blast:RG(1.6), deathDmg:163, deathBlast:RG(1.6), deathSpawn:7, spawnCard:'skeletons', deathSpawnFan:true, desc:'飞行，只打建筑；撞到塔或被击落时炸开 163 范围伤害，并掉出 7 个骷髅兵' },
+  dartGoblin:  { name:'吹箭哥布林', cost:3, type:'troop', firstHit:0.35, count:1, hp:261, dmg:143, hitSpeed:0.8, speed:SP_VFAST, range:RG(6.5), radius:16, glyph:'🪶', c1:'#9ad44a', c2:'#4f7a1c', targetsAir:true, shot:'dart', desc:'0.8 秒一发的远程吹箭，射程 6.5 格，能打空中（DPS 179）' },
   vines:       { name:'藤蔓法术',   cost:3, type:'spell', dmg:153, towerDmg:35, spellRadius:RG(2.5), vineDur:2, vineMax:3, glyph:'🌿', c1:'#4fae5a', c2:'#1f6b34', desc:'半径 2.5 格，持续 2 秒：每秒 153 伤害（塔 35），最多定身 3 个敌人，并把飞行单位拽到地面' },
   // —— 第八批：公主 / 掘地矿工 / 寒冰法师 / 地震法术（数值表最新 4 行）——
   //   公主：261 血 / 168 小范围伤害 / 3 秒一发 / 9 格射程 / 空地都能打 / 落地 1.2 秒
   //   矿工：1210 血 / 194（对塔只有 39）/ 1.3 秒 / 快 / 近战:中 / 只打地面 / 可放在地图任意位置
   //   寒冰法师：688 / 89 / 1.7 秒 / 5.5 格 / 空地 / 登场 84 伤害，攻击与登场都减速 2.5 秒
   //   地震：半径 3.5 / 3 秒；地面兵 81 每秒、建筑 283 每秒、皇家塔 49 每秒，减速 50%
-  princess:    { name:'公主',       cost:3, type:'troop', count:1, hp:261, dmg:168, hitSpeed:3.0, speed:SP_MED, range:RG(9), radius:17, glyph:'👸', c1:'#e0a0c8', c2:'#8f3f6a', targetsAir:true, splash:46, shot:'parrow', deploy:1.2, desc:'9 格超远射程的公主，小范围伤害，能打空中（3 秒一发）' },
-  miner:       { name:'掘地矿工',   cost:3, type:'troop', count:1, hp:1210, dmg:194, towerDmg:39, hitSpeed:1.3, speed:SP_FAST, range:R_MELEE_M, radius:20, glyph:'⛏️', c1:'#c9a86a', c2:'#7a5a24', targetsAir:false, deployAnywhere:true, burrowTravel:true, burrowSpeed:12*TILE, desc:'可以放到地图任意位置；从己方国王塔地下钻过去（12 格/秒），打兵 194、打皇家塔 39（DPS 149）' },
-  iceWizard:   { name:'寒冰法师',   cost:3, type:'troop', count:1, hp:688, dmg:89, hitSpeed:1.7, speed:SP_MED, range:RG(5.5), radius:18, glyph:'🥶', c1:'#7fd0e8', c2:'#2f6f9a', targetsAir:true, splash:60, slowOnHit:2.5, spawnDmg:84, spawnBlast:RG(1.5), shot:'magic', desc:'范围伤害并减速命中的敌人 2.5 秒；落地时还会炸一圈 84 伤害（DPS 52）' },
+  princess:    { name:'公主',       cost:3, type:'troop', firstHit:0.5, count:1, hp:261, dmg:168, hitSpeed:3.0, speed:SP_MED, range:RG(9), radius:17, glyph:'👸', c1:'#e0a0c8', c2:'#8f3f6a', targetsAir:true, splash:46, shot:'parrow', deploy:1.2, desc:'9 格超远射程的公主，小范围伤害，能打空中（3 秒一发）' },
+  miner:       { name:'掘地矿工',   cost:3, type:'troop', firstHit:0.5, count:1, hp:1210, dmg:194, towerDmg:39, hitSpeed:1.3, speed:SP_FAST, range:R_MELEE_M, radius:20, glyph:'⛏️', c1:'#c9a86a', c2:'#7a5a24', targetsAir:false, deployAnywhere:true, burrowTravel:true, burrowSpeed:12*TILE, desc:'可以放到地图任意位置；从己方国王塔地下钻过去（12 格/秒），打兵 194、打皇家塔 39（DPS 149）' },
+  iceWizard:   { name:'寒冰法师',   cost:3, type:'troop', firstHit:0.5, count:1, hp:688, dmg:89, hitSpeed:1.7, speed:SP_MED, range:RG(5.5), radius:18, glyph:'🥶', c1:'#7fd0e8', c2:'#2f6f9a', targetsAir:true, splash:60, slowOnHit:2.5, spawnDmg:84, spawnBlast:RG(1.5), shot:'magic', desc:'范围伤害并减速命中的敌人 2.5 秒；落地时还会炸一圈 84 伤害（DPS 52）' },
   earthquake:  { name:'地震法术',   cost:3, type:'spell', dmg:81, towerDmg:49, buildingDmg:283, spellRadius:RG(3.5), quakeDur:3, glyph:'🌋', c1:'#b08a5a', c2:'#6a4a22', desc:'半径 3.5 格、持续 3 秒：地面单位每秒 81 伤害并减速 50%，建筑每秒 283，皇家塔每秒 49' },
   // —— 第九批：皇家幽灵 / 幻影刺客 / 圣水戈仑 / 飓风法术 ——
   //   皇家幽灵：1152 / 263 / 1.8 秒 / 快 / 近战:中 / 只打地面；登场隐身，出手显形，停手 2 秒再隐身
   //   幻影刺客：906 / 194 / 1 秒 / 快 / 近战:短 / 只打地面；3.5~6 格内突袭，突袭那一下 389
   //   圣水戈仑：1569 / 253 / 1.1 秒 / 慢 / 只打建筑；死了裂成 2 个小戈仑，对手每打掉一块得 0.5 圣水
   //   飓风：半径 5.5 / 1 秒，把空地上的单位往中心卷，总共 84 伤害（塔 25）
-  royalGhost:  { name:'皇家幽灵',   cost:3, type:'troop', count:1, hp:1152, dmg:263, hitSpeed:1.8, speed:SP_FAST, range:R_MELEE_M, radius:19, glyph:'👤', c1:'#a8dcea', c2:'#4a7f9a', targetsAir:false, stealth:true, desc:'登场隐身，敌人看不见也打不到；出手后显形，停手 2 秒重新隐身（DPS 146）' },
-  bandit:      { name:'幻影刺客',   cost:3, type:'troop', count:1, hp:906, dmg:194, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_S, radius:17, glyph:'🥷', c1:'#c86a9a', c2:'#7a2a4a', targetsAir:false, dashRange:RG(6), dashMin:RG(3.5), dashDmg:389, desc:'3.5~6 格内有目标就突袭过去（突袭瞬间无敌），突袭那一下 389 伤害（DPS 194）' },
-  elixirGolem: { name:'圣水戈仑',   cost:3, type:'troop', count:1, hp:1569, dmg:253, hitSpeed:1.1, speed:SP_SLOW, range:R_MELEE_S, radius:26, glyph:'🧪', c1:'#c07ae0', c2:'#6a2a8a', targetsAir:false, buildingsOnly:true, deathSpawn:2, spawnCard:'elixirGolemite', elixirGift:0.5, desc:'只打建筑；被消灭时裂成 2 个圣水小戈仑，对手每打掉一部分得 0.5 圣水（DPS 230）' },
+  royalGhost:  { name:'皇家幽灵',   cost:3, type:'troop', firstHit:0.6, count:1, hp:1152, dmg:263, hitSpeed:1.8, speed:SP_FAST, range:R_MELEE_M, radius:19, glyph:'👤', c1:'#a8dcea', c2:'#4a7f9a', targetsAir:false, stealth:true, desc:'登场隐身，敌人看不见也打不到；出手后显形，停手 2 秒重新隐身（DPS 146）' },
+  bandit:      { name:'幻影刺客',   cost:3, type:'troop', firstHit:0.4, count:1, hp:906, dmg:194, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_S, radius:17, glyph:'🥷', c1:'#c86a9a', c2:'#7a2a4a', targetsAir:false, dashRange:RG(6), dashMin:RG(3.5), dashDmg:389, desc:'3.5~6 格内有目标就突袭过去（突袭瞬间无敌），突袭那一下 389 伤害（DPS 194）' },
+  elixirGolem: { name:'圣水戈仑',   cost:3, type:'troop', firstHit:1, count:1, hp:1569, dmg:253, hitSpeed:1.1, speed:SP_SLOW, range:R_MELEE_S, radius:26, glyph:'🧪', c1:'#c07ae0', c2:'#6a2a8a', targetsAir:false, buildingsOnly:true, deathSpawn:2, spawnCard:'elixirGolemite', elixirGift:0.5, desc:'只打建筑；被消灭时裂成 2 个圣水小戈仑，对手每打掉一部分得 0.5 圣水（DPS 230）' },
   // 下面两张是圣水戈仑的「分身」，不进卡池（hidden: true）
-  elixirGolemite:{ name:'圣水小戈仑', cost:3, type:'troop', hidden:true, count:1, hp:762, dmg:128, hitSpeed:1.1, speed:SP_SLOW, range:R_MELEE_S, radius:20, glyph:'🧪', c1:'#c07ae0', c2:'#6a2a8a', targetsAir:false, buildingsOnly:true, deathSpawn:2, spawnCard:'elixirBlob', elixirGift:0.5 },
-  elixirBlob:  { name:'圣水泡泡',   cost:3, type:'troop', hidden:true, count:1, hp:360, dmg:64, hitSpeed:1.1, speed:SP_SLOW, range:R_MELEE_S, radius:15, glyph:'🫧', c1:'#d9a8f0', c2:'#7a3a9a', targetsAir:false, buildingsOnly:true, elixirGift:0.5 },
+  elixirGolemite:{ name:'圣水小戈仑', cost:3, type:'troop', firstHit:1, hidden:true, count:1, hp:762, dmg:128, hitSpeed:1.1, speed:SP_SLOW, range:R_MELEE_S, radius:20, glyph:'🧪', c1:'#c07ae0', c2:'#6a2a8a', targetsAir:false, buildingsOnly:true, deathSpawn:2, spawnCard:'elixirBlob', elixirGift:0.5 },
+  elixirBlob:  { name:'圣水泡泡',   cost:3, type:'troop', firstHit:1, hidden:true, count:1, hp:360, dmg:64, hitSpeed:1.1, speed:SP_SLOW, range:R_MELEE_S, radius:15, glyph:'🫧', c1:'#d9a8f0', c2:'#7a3a9a', targetsAir:false, buildingsOnly:true, elixirGift:0.5 },
   tornado:     { name:'飓风法术',   cost:3, type:'spell', dmg:84, towerDmg:25, spellRadius:RG(5.5), tornadoDur:1, glyph:'🌪️', c1:'#8fd0e8', c2:'#3a7a9a', desc:'半径 5.5 格、持续 1 秒：把空中和地面的单位往中心卷，总共 84 伤害（塔 25）' },
   // —— 第十批：克隆法术 / 渔夫 / 哥布林小屋 / 哥布林牢笼（+ 牢笼里关着的哥布林硬汉）——
   //   克隆：半径 3 格，复制范围内己方部队（复制体 1 血 1 盾，伤害与本尊一样，且不能再被克隆）
@@ -607,69 +614,78 @@ const CARDS = {
   //   哥布林小屋：1180 血 / 每 2.2 秒出 1 个投矛手 / 30 秒 / 被摧毁再出 1 个
   //   哥布林牢笼：780 血 / 关 20 秒 / 被摧毁或到期时放出 1 个哥布林硬汉
   clone:       { name:'克隆法术',   cost:3, type:'spell', spellRadius:RG(3), clone:true, glyph:'🔮', c1:'#c07ae0', c2:'#6a2a8a', desc:'半径 3 格：把范围内的己方部队复制一份，复制体只有 1 点生命 + 1 点护盾，但伤害与本尊相同' },
-  fisherman:   { name:'渔夫',       cost:3, type:'troop', count:1, hp:870, dmg:194, hitSpeed:1.3, speed:SP_MED, range:R_MELEE_S, radius:19, glyph:'🎣', c1:'#6aa8d8', c2:'#2a5a7a', targetsAir:false, hookMin:RG(3.5), hookMax:RG(7), desc:'3.5~7 格内的敌人会被钩子拽到身边，然后按 194/1.3 秒输出（DPS 149）' },
+  fisherman:   { name:'渔夫',       cost:3, type:'troop', firstHit:0.1, count:1, hp:870, dmg:194, hitSpeed:1.3, speed:SP_MED, range:R_MELEE_S, radius:19, glyph:'🎣', c1:'#6aa8d8', c2:'#2a5a7a', targetsAir:false, hookMin:RG(3.5), hookMax:RG(7), desc:'3.5~7 格内的敌人会被钩子拽到身边，然后按 194/1.3 秒输出（DPS 149）' },
   goblinHut:   { name:'哥布林小屋', cost:4, type:'building', hp:1180, dmg:0, hitSpeed:1, range:RG(0), radius:28, glyph:'🏚️', c1:'#9ab06a', c2:'#4f6a2a', lifetime:30, spawnEvery:2.2, spawnWhenEnemy:RG(5.5), spawnCard:'spearGoblins', spawnCount:1, deathSpawn:1, desc:'建筑：5.5 格内有敌人才产兵，每 2.2 秒出一个哥布林投矛手，持续 30 秒；被摧毁时再出 1 个' },
-  goblinCage:  { name:'哥布林牢笼', cost:4, type:'building', hp:780, dmg:0, hitSpeed:1, range:RG(0), radius:26, glyph:'⛓️', c1:'#9aa06a', c2:'#4f5a2a', lifetime:20, deathSpawn:1, spawnCard:'goblinBrawler', desc:'建筑：里面关着哥布林硬汉，20 秒到期或被摧毁时放出来' },
+  goblinCage:  { name:'哥布林牢笼', cost:4, type:'building', firstHit:0.2, hp:780, dmg:0, hitSpeed:1, range:RG(0), radius:26, glyph:'⛓️', c1:'#9aa06a', c2:'#4f5a2a', lifetime:20, deathSpawn:1, spawnCard:'goblinBrawler', desc:'建筑：里面关着哥布林硬汉，20 秒到期或被摧毁时放出来' },
   // 牢笼里关的兵，不进卡池
-  goblinBrawler:{ name:'哥布林硬汉', cost:4, type:'troop', hidden:true, count:1, hp:1100, dmg:200, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:20, glyph:'💪', c1:'#8fbf4a', c2:'#3f6a1c', targetsAir:false },
+  goblinBrawler:{ name:'哥布林硬汉', cost:4, type:'troop', firstHit:0.2, hidden:true, count:1, hp:1100, dmg:200, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:20, glyph:'💪', c1:'#8fbf4a', c2:'#3f6a1c', targetsAir:false },
   // —— 第十一批：野蛮人攻城锤 / 骷髅飞龙 / 炸弹塔 / 迫击炮 ——
   //   攻城锤：967 血 / 286（冲刺 573）/ 中等→冲刺极快 / 近战:短 / 只打建筑；
   //            助跑 3.5 格进入冲刺，撞到建筑或被击毁都会散成 2 个野蛮人
   //   骷髅飞龙：560 / 151 / 2 秒 / 快 / 3.5 格 / 空地通吃 / 2 只 / 范围伤害 / 飞行
   //   炸弹塔：1356 血 / 222 / 1.8 秒 / 6 格 / 只打地面 / 30 秒 / 亡语炸 222
   //   迫击炮：1369 血 / 266 / 4.7 秒 / 11.5 格 / 盲区 3.5 格 / 30 秒 / 部署 3.5 秒 / 溅射 2 格
-  battleRam:   { name:'野蛮人攻城锤', cost:4, type:'troop', count:1, hp:967, dmg:286, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:22, glyph:'🔨', c1:'#d8a45a', c2:'#8a5a1c', targetsAir:false, buildingsOnly:true, chargeDist:RG(3.5), chargeDmg:573, chargeSpeed:SP_VFAST, breaksOnHit:true, deathSpawn:2, spawnCard:'barbarians', desc:'只打建筑：助跑 3.5 格后进入冲刺（极快），撞上那一下 573 伤害，然后散成 2 个野蛮人' },
-  skeletonDragons:{ name:'骷髅飞龙', cost:4, type:'troop', count:2, hp:560, dmg:151, hitSpeed:2, speed:SP_FAST, range:RG(3.5), radius:20, glyph:'🩻', c1:'#a8d8e8', c2:'#4a7a9a', targetsAir:true, flying:true, splash:RG(1.2), shot:'flame', desc:'2 只飞行单位，范围伤害，空中地面都能打（DPS 76）' },
-  bombTower:   { name:'炸弹塔', cost:4, type:'building', hp:1356, dmg:222, hitSpeed:1.8, range:RG(6), radius:28, glyph:'🏯', c1:'#8a8a96', c2:'#4a4a55', targetsAir:false, lifetime:30, splash:RG(1.5), shot:'bomb', deathBlast:RG(1.5), deathDmg:222, desc:'建筑，只打地面、范围伤害；30 秒到期或被摧毁时炸一圈 222（DPS 123）' },
+  battleRam:   { name:'野蛮人攻城锤', cost:4, type:'troop', firstHit:0.35, count:1, hp:967, dmg:286, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:22, glyph:'🔨', c1:'#d8a45a', c2:'#8a5a1c', targetsAir:false, buildingsOnly:true, chargeDist:RG(3), chargeDmg:573, chargeSpeed:SP_VFAST, breaksOnHit:true, deathSpawn:2, spawnCard:'barbarians', desc:'只打建筑：助跑 3 格后进入冲刺（极快），撞上那一下 573 伤害，然后散成 2 个野蛮人' },
+  skeletonDragons:{ name:'骷髅飞龙', cost:4, type:'troop', firstHit:0.6, count:2, hp:560, dmg:151, hitSpeed:2, speed:SP_FAST, range:RG(3.5), radius:20, glyph:'🩻', c1:'#a8d8e8', c2:'#4a7a9a', targetsAir:true, flying:true, splash:RG(1.2), shot:'flame', desc:'2 只飞行单位，范围伤害，空中地面都能打（DPS 76）' },
+  bombTower:   { name:'炸弹塔', cost:4, type:'building', firstHit:0.5, hp:1356, dmg:222, hitSpeed:1.8, range:RG(6), radius:28, glyph:'🏯', c1:'#8a8a96', c2:'#4a4a55', targetsAir:false, lifetime:30, splash:RG(1.5), shot:'bomb', deathBlast:RG(1.5), deathDmg:222, desc:'建筑，只打地面、范围伤害；30 秒到期或被摧毁时炸一圈 222（DPS 123）' },
+  // —— 第十七批：王子 / 亡灵大军 / 蛮羊骑士 / 雷电飞龙 ——
+  //   王子：1920 / 391（冲刺 783）/ 1.4 秒 / 中等→极快 / 近战:长 / 地面；助跑 2.5 格
+  //   亡灵大军：6 只，每只 230 / 107 / 1.2 秒 / 快 / 2.5 格 / 空地 / 飞行，松散椭圆
+  //   蛮羊骑士：1766 / 271（冲刺 542）/ 1.7 秒 / 中等→极快 / 近战:短 / 只打建筑；助跑 2.5 格；骑士套索 104 + 定身 2 秒
+  //   雷电飞龙：1049 / 192 / 2.1 秒 / 中等 / 3.5 格 / 空地 / 飞行；闪电链 3 个目标 + 0.5 秒眩晕
+  prince:       { name:'王子',       cost:5, type:'troop', firstHit:0.5, count:1, hp:1920, dmg:391, hitSpeed:1.4, speed:SP_MED, range:R_MELEE_L, radius:24, glyph:'🤴', c1:'#d8b45a', c2:'#8a6a1a', targetsAir:false, chargeDist:RG(2.5), chargeDmg:783, chargeSpeed:SP_VFAST, desc:'助跑 2.5 格进入冲刺，冲刺那一下 783；平时 391（DPS 279）' },
+  minionHorde:  { name:'亡灵大军',   cost:5, type:'troop', firstHit:0.5, count:6, hp:230, dmg:107, hitSpeed:1.2, speed:SP_FAST, range:RG(2.5), radius:14, glyph:'🦟', unitGlyph:'👻', c1:'#9b6bd6', c2:'#6a3fa8', targetsAir:true, flying:true, form:'arc', desc:'六只飞行单位，落地摆成一道上下对称的弧形（前排三只、后排三只，中间略前凸；每只 DPS 89）' },
+  ramRider:     { name:'蛮羊骑士',   cost:5, type:'troop', firstHit:0.6, count:1, hp:1766, dmg:271, hitSpeed:1.7, speed:SP_MED, range:R_MELEE_S, radius:24, glyph:'🐏', c1:'#d8b0a0', c2:'#8a5a4a', targetsAir:false, buildingsOnly:true, jumpRiver:true, chargeDist:RG(2.5), chargeDmg:542, chargeSpeed:SP_VFAST, riderDmg:104, riderHitSpeed:1.1, riderRange:RG(5.5), riderRoot:2, desc:'只打建筑、能跳河：助跑 2.5 格冲刺，那一下 542；背上的骑士每 1.1 秒朝 5.5 格内敌人甩套索（104 伤害 + 定身 2 秒）' },
+  electroDragon:{ name:'雷电飞龙',   cost:5, type:'troop', firstHit:0.7, count:1, hp:1049, dmg:192, hitSpeed:2.1, speed:SP_MED, range:RG(3.5), radius:22, glyph:'🐲', c1:'#8ad0ff', c2:'#2a5a8a', targetsAir:true, flying:true, zapCount:3, zapRange:RG(3), zapGap:0.3, stunOnHit:0.5, desc:'飞行：闪电链最多连 3 个目标，各 192 伤害并眩晕 0.5 秒' },
   // —— 第十六批：地狱之塔 / 女巫 / 气球兵 / 皇家野猪 ——
   //   地狱之塔：建筑 1748 血 / 30 秒 / 6 格 / 0.4 秒一跳 / 43→847（机制同地狱飞龙）
   //   女巫：839 / 135 / 1.1 秒 / 5.5 格 / 空地；每 7 秒召唤 4 只蝙蝠
   //   气球兵：1676 / 640 / 2 秒 / 中等 / 近战:短 / 只打建筑 / 飞行；死后掉炸弹 240（半径 2.5）
   //   皇家野猪：4 只，每只 837 / 74 / 1.2 秒 / 极快 / 近战:短 / 只打建筑；会跳河
-  infernoTower: { name:'地狱之塔', cost:5, type:'building', hp:1748, dmg:43, hitSpeed:0.4, range:RG(6), radius:26, glyph:'🏰', c1:'#e07a3a', c2:'#8a2a0a', targetsAir:true, lifetime:30, rampTo:847, rampTicks:10, desc:'建筑：对同一目标持续灼烧，43→847（约 4 秒烧满），持续 30 秒（DPS 107→2117）' },
-  witch:        { name:'女巫',     cost:5, type:'troop', count:1, hp:839, dmg:135, hitSpeed:1.1, speed:SP_MED, range:RG(5.5), radius:20, glyph:'🧹', c1:'#a07ad0', c2:'#4a2a7a', targetsAir:true, spawnEvery:7, spawnCard:'skeletons', spawnCount:4, spawnStagger:0.12, summonCross:true, shot:'magic', desc:'每 7 秒召唤 4 只骷髅兵；远程 5.5 格，空中地面通吃' },
-  balloon:      { name:'气球兵',   cost:5, type:'troop', count:1, hp:1676, dmg:640, hitSpeed:2, speed:SP_MED, range:R_MELEE_S, radius:24, glyph:'🎈', c1:'#d8a05a', c2:'#8a5a2a', targetsAir:false, flying:true, buildingsOnly:true, deathDmg:240, deathBlast:RG(2.5), desc:'飞行、只打建筑（640 一下）；被击落时掉炸弹，炸 240 范围伤害' },
-  royalHogs:    { name:'皇家野猪', cost:5, type:'troop', count:4, form:'line', hp:837, dmg:74, hitSpeed:1.2, speed:SP_VFAST, range:R_MELEE_S, radius:18, glyph:'🐖', c1:'#e0a0a0', c2:'#a04a4a', targetsAir:false, buildingsOnly:true, jumpRiver:true, desc:'4 只只打建筑的野猪，速度极快、会跳河（每只 DPS 61）' },
+  infernoTower: { name:'地狱之塔', cost:5, type:'building', firstHit:0.4, hp:1748, dmg:43, hitSpeed:0.4, range:RG(6), radius:26, glyph:'🏰', c1:'#e07a3a', c2:'#8a2a0a', targetsAir:true, lifetime:30, rampTo:847, rampTicks:10, desc:'建筑：对同一目标持续灼烧，43→847（约 4 秒烧满），持续 30 秒（DPS 107→2117）' },
+  witch:        { name:'女巫',     cost:5, type:'troop', firstHit:0.7, count:1, hp:839, dmg:135, hitSpeed:1.1, speed:SP_MED, range:RG(5.5), radius:20, glyph:'🧹', c1:'#a07ad0', c2:'#4a2a7a', targetsAir:true, spawnEvery:7, spawnCard:'skeletons', spawnCount:4, spawnStagger:0.12, summonCross:true, shot:'magic', desc:'每 7 秒召唤 4 只骷髅兵；远程 5.5 格，空中地面通吃' },
+  balloon:      { name:'气球兵',   cost:5, type:'troop', firstHit:0.2, count:1, hp:1676, dmg:640, hitSpeed:2, speed:SP_MED, range:R_MELEE_S, radius:24, glyph:'🎈', c1:'#d8a05a', c2:'#8a5a2a', targetsAir:false, flying:true, buildingsOnly:true, deathDmg:240, deathBlast:RG(2.5), desc:'飞行、只打建筑（640 一下）；被击落时掉炸弹，炸 240 范围伤害' },
+  royalHogs:    { name:'皇家野猪', cost:5, type:'troop', firstHit:0.35, count:4, form:'line', hp:837, dmg:74, hitSpeed:1.2, speed:SP_VFAST, range:R_MELEE_S, radius:18, glyph:'🐖', c1:'#e0a0a0', c2:'#a04a4a', targetsAir:false, buildingsOnly:true, jumpRiver:true, desc:'4 只只打建筑的野猪，速度极快、会跳河（每只 DPS 61）' },
   // —— 第十五批：神箭游侠 / 哥布林钻机 / 狂暴樵夫 / 暗夜女巫 ——
   //   神箭游侠：529 / 135 / 1.1s / 中等 / 7 格 / 空地；穿透箭，弹道 11 格
   //   哥布林钻机：建筑 1313 血 / 每 3 秒出一个哥布林 / 10 秒；钻出地面炸 84（塔 20）
   //   狂暴樵夫：1282 / 256 / 0.8s / 极快 / 近战:短 / 地面；死后洒狂暴
   //   暗夜女巫：906 / 314 / 1.3s / 中等 / 近战:长 / 地面；每 5 秒两只蝙蝠，死时 1 只
-  magicArcher:  { name:'神箭游侠', cost:4, type:'troop', count:1, hp:529, dmg:135, hitSpeed:1.1, speed:SP_MED, range:RG(7), radius:19, glyph:'🌠', c1:'#8ad0c0', c2:'#2a6a5a', targetsAir:true, pierce:true, pierceRange:RG(11), desc:'穿透箭：一箭沿直线飞 11 格，路径上的敌人全部吃 135 伤害（射程 7 格）' },
-  goblinDrill:  { name:'哥布林钻机', cost:4, type:'building', hp:1313, dmg:84, hitSpeed:1, range:RG(0), radius:22, glyph:'🕳️', c1:'#9ac06a', c2:'#4a6a2a', lifetime:10, spawnEvery:3, spawnCard:'goblin', spawnCount:1, drillDmg:84, drillTowerDmg:20, deployAnywhere:true, burrowTravel:true, burrowSpeed:3*TILE, desc:'可以下在场上任何位置；从己方国王塔地下钻过去（3 格/秒），出土时炸 84（塔 20），之后每 3 秒钻出一个哥布林，持续 10 秒' },
-  lumberjack:   { name:'狂暴樵夫', cost:4, type:'troop', count:1, hp:1282, dmg:256, hitSpeed:0.8, speed:SP_VFAST, range:R_MELEE_S, radius:20, glyph:'🪚', c1:'#c8a06a', c2:'#6a4a2a', targetsAir:false, deathRage:true, desc:'极快近战（0.8 秒一刀，DPS 320）；阵亡时洒下一片狂暴区域' },
-  nightWitch:   { name:'暗夜女巫', cost:4, type:'troop', count:1, hp:906, dmg:314, hitSpeed:1.3, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'🧛', c1:'#8a6ac0', c2:'#3a2a6a', targetsAir:false, spawnEvery:5, spawnCard:'bats', spawnCount:2, deathSpawn:1, desc:'每 5 秒召唤 2 只蝙蝠，阵亡时再放 1 只（DPS 241）' },
+  magicArcher:  { name:'神箭游侠', cost:4, type:'troop', firstHit:0.5, count:1, hp:529, dmg:135, hitSpeed:1.1, speed:SP_MED, range:RG(7), radius:19, glyph:'🌠', c1:'#8ad0c0', c2:'#2a6a5a', targetsAir:true, pierce:true, pierceRange:RG(11), desc:'穿透箭：一箭沿直线飞 11 格，路径上的敌人全部吃 135 伤害（射程 7 格）' },
+  goblinDrill:  { name:'哥布林钻机', cost:4, type:'building', firstHit:0.2, hp:1313, dmg:84, hitSpeed:1, range:RG(0), radius:22, glyph:'🕳️', c1:'#9ac06a', c2:'#4a6a2a', lifetime:10, spawnEvery:3, spawnCard:'goblin', spawnCount:1, drillDmg:84, drillTowerDmg:20, deployAnywhere:true, burrowTravel:true, burrowSpeed:3*TILE, desc:'可以下在场上任何位置；从己方国王塔地下钻过去（3 格/秒），出土时炸 84（塔 20），之后每 3 秒钻出一个哥布林，持续 10 秒' },
+  lumberjack:   { name:'狂暴樵夫', cost:4, type:'troop', firstHit:0.4, count:1, hp:1282, dmg:256, hitSpeed:0.8, speed:SP_VFAST, range:R_MELEE_S, radius:20, glyph:'🪚', c1:'#c8a06a', c2:'#6a4a2a', targetsAir:false, deathRage:true, desc:'极快近战（0.8 秒一刀，DPS 320）；阵亡时洒下一片狂暴区域' },
+  nightWitch:   { name:'暗夜女巫', cost:4, type:'troop', firstHit:0.75, count:1, hp:906, dmg:314, hitSpeed:1.3, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'🧛', c1:'#8a6ac0', c2:'#3a2a6a', targetsAir:false, spawnEvery:5, spawnCard:'bats', spawnCount:2, deathSpawn:1, desc:'每 5 秒召唤 2 只蝙蝠，阵亡时再放 1 只（DPS 241）' },
   // —— 第十四批：地狱飞龙 / 闪电法师 / 哥布林爆破手 / 凤凰 ——
   //   地狱飞龙：1295 / 35→422（0.4 秒一跳，同一目标越烧越疼）/ 中等 / 3.5 格 / 空地 / 飞行
   //   闪电法师：714 / 117×2（连锁两个）/ 1.8 秒 / 快 / 5 格 / 空地；登场 192 + 0.5 秒眩晕
   //   哥布林爆破手：1300 / 186 / 1.1 秒 / 中等 / 5 格 / 地面；血量 ≤50% 冲锋，自爆 404 半径 2.5
   //   凤凰：1052 / 217 / 1 秒 / 中等 / 近战:长 / 空地 / 飞行；死后留蛋（317 血，3.8 秒孵化）
-  infernoDragon: { name:'地狱飞龙', cost:4, type:'troop', count:1, hp:1295, dmg:35, hitSpeed:0.4, speed:SP_MED, range:RG(3.5), radius:22, glyph:'☄️', c1:'#ff7a3a', c2:'#8a1a0a', targetsAir:true, flying:true, rampTo:422, rampTicks:10, desc:'飞行：对同一目标持续灼烧，伤害从 35 一路涨到 422（约 4 秒烧满，DPS 87→1055）' },
-  electroWizard: { name:'闪电法师', cost:4, type:'troop', count:1, hp:714, dmg:117, hitSpeed:1.8, speed:SP_FAST, range:RG(5), radius:20, glyph:'🪄', c1:'#8ad0ff', c2:'#2a6aa8', targetsAir:true, zapCount:2, stunOnHit:0.5, spawnDmg:192, spawnStun:0.5, desc:'登场 192 伤害 + 0.5 秒眩晕；每次攻击连锁两个目标，各 117 并眩晕 0.5 秒' },
-  goblinDemolisher: { name:'哥布林爆破手', cost:4, type:'troop', count:1, hp:1300, dmg:186, hitSpeed:1.1, speed:SP_MED, range:RG(5), radius:22, glyph:'👷', c1:'#9ac06a', c2:'#4a6a2a', targetsAir:false, splash:RG(1.2), demolish:true, desc:'血量 ≤50% 时以极快速度冲向建筑；冲锋途中阵亡或撞到建筑都会自爆（404 伤害，半径 2.5 格）' },
-  phoenix:      { name:'凤凰',     cost:4, type:'troop', count:1, hp:1052, dmg:217, hitSpeed:1, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'🐦‍🔥', c1:'#ffb84a', c2:'#c04a1a', targetsAir:true, flying:true, deathSpawn:1, spawnCard:'phoenixEgg', desc:'飞行单位；阵亡后留下一枚凤凰蛋（317 血，3.8 秒孵化），孵出的凤凰不会再产蛋' },
+  infernoDragon: { name:'地狱飞龙', cost:4, type:'troop', firstHit:0.4, count:1, hp:1295, dmg:35, hitSpeed:0.4, speed:SP_MED, range:RG(3.5), radius:22, glyph:'☄️', c1:'#ff7a3a', c2:'#8a1a0a', targetsAir:true, flying:true, rampTo:422, rampTicks:10, desc:'飞行：对同一目标持续灼烧，伤害从 35 一路涨到 422（约 4 秒烧满，DPS 87→1055）' },
+  electroWizard: { name:'闪电法师', cost:4, type:'troop', firstHit:0.6, count:1, hp:714, dmg:117, hitSpeed:1.8, speed:SP_FAST, range:RG(5), radius:20, glyph:'🪄', c1:'#8ad0ff', c2:'#2a6aa8', targetsAir:true, zapCount:2, stunOnHit:0.5, spawnDmg:192, spawnStun:0.5, desc:'登场 192 伤害 + 0.5 秒眩晕；每次攻击连锁两个目标，各 117 并眩晕 0.5 秒' },
+  goblinDemolisher: { name:'哥布林爆破手', cost:4, type:'troop', firstHit:0.2, count:1, hp:1300, dmg:186, hitSpeed:1.1, speed:SP_MED, range:RG(5), radius:22, glyph:'👷', c1:'#9ac06a', c2:'#4a6a2a', targetsAir:false, splash:RG(1.2), demolish:true, desc:'血量 ≤50% 时以极快速度冲向建筑；冲锋途中阵亡或撞到建筑都会自爆（404 伤害，半径 2.5 格）' },
+  phoenix:      { name:'凤凰',     cost:4, type:'troop', firstHit:0.5, count:1, hp:1052, dmg:217, hitSpeed:1, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'🐦‍🔥', c1:'#ffb84a', c2:'#c04a1a', targetsAir:true, flying:true, deathSpawn:1, spawnCard:'phoenixEgg', desc:'飞行单位；阵亡后留下一枚凤凰蛋（317 血，3.8 秒孵化），孵出的凤凰不会再产蛋' },
   // 不进卡池：凤凰蛋 / 蛋孵出的凤凰
   phoenixEgg:   { name:'凤凰蛋',   cost:4, type:'troop', hidden:true, count:1, hp:317, dmg:0, hitSpeed:1, speed:0, range:RG(0), radius:16, glyph:'🥚', c1:'#ffd88a', c2:'#c08a2a', hatchInto:'phoenixReborn', hatchT:3.8, desc:'凤凰蛋：3.8 秒后孵化成凤凰（蛋被打掉就不会孵）' },
-  phoenixReborn:{ name:'凤凰',     cost:4, type:'troop', hidden:true, count:1, hp:1052, dmg:217, hitSpeed:1, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'🐦‍🔥', c1:'#ffb84a', c2:'#c04a1a', targetsAir:true, flying:true, desc:'由凤凰蛋孵出的凤凰（不会再产蛋）' },
+  phoenixReborn:{ name:'凤凰',     cost:4, type:'troop', firstHit:0.5, hidden:true, count:1, hp:1052, dmg:217, hitSpeed:1, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'🐦‍🔥', c1:'#ffb84a', c2:'#c04a1a', targetsAir:true, flying:true, desc:'由凤凰蛋孵出的凤凰（不会再产蛋）' },
   // —— 第十三批：黑暗王子 / 烈焰熔炉 / 猎人 / 毒药法术 ——
   //   黑暗王子：1200 血（护盾 240）/ 266（冲刺 532）/ 1.4 秒 / 中等→冲刺极快 / 近战:中 / 只打地面 / 范围伤害
   //   烈焰熔炉：建筑 727 血 / 30 秒 / 每 5 秒产一个烈焰精灵
   //   猎人：885 血 / 84×10 颗弹丸 / 2.2 秒 / 4 格（弹丸最远 6.5 格）/ 空地通吃
   //   毒药法术：半径 3.5 / 8 秒 / 每秒 92（塔 21）/ 减速 15%
-  darkPrince:   { name:'黑暗王子',   cost:4, type:'troop', count:1, hp:1200, dmg:266, hitSpeed:1.4, speed:SP_MED, range:R_MELEE_M, radius:22, glyph:'👑', c1:'#6a6a8a', c2:'#2a2a44', targetsAir:false, splash:RG(1.2), shield:240, chargeDist:RG(3.5), chargeDmg:532, chargeSpeed:SP_VFAST, desc:'护盾 240；助跑 3.5 格进入冲刺，冲刺那一下 532 范围伤害（平时 266，DPS 190）' },
-  furnace:      { name:'烈焰熔炉',   cost:4, type:'troop', count:1, hp:727, dmg:179, hitSpeed:1.7, speed:SP_MED, range:RG(5.5), radius:24, glyph:'🏭', c1:'#e08a4a', c2:'#8a3a1a', targetsAir:true, shot:'flame', spawnEvery:5, spawnCard:'fireSpirit', spawnCount:1, desc:'改版后的熔炉：落地立刻产一个烈焰精灵，之后每 5 秒一个；会走会打（179/1.7 秒，5.5 格，空地通吃）' },
-  hunter:       { name:'猎人',       cost:4, type:'troop', count:1, hp:885, dmg:84, hitSpeed:2.2, speed:SP_MED, range:RG(4), radius:20, glyph:'🐾', c1:'#8a7a5a', c2:'#4a3a22', targetsAir:true, shot:'pellet', pellets:10, projRange:RG(6.5), desc:'霰弹枪：一次打出 10 颗 84 伤害的弹丸，贴脸全中、越远命中越少（弹丸最远 6.5 格）' },
+  darkPrince:   { name:'黑暗王子',   cost:4, type:'troop', firstHit:0.4, count:1, hp:1200, dmg:266, hitSpeed:1.4, speed:SP_MED, range:R_MELEE_M, radius:22, glyph:'👑', c1:'#6a6a8a', c2:'#2a2a44', targetsAir:false, splash:RG(1.2), shield:240, chargeDist:RG(3), chargeDmg:532, chargeSpeed:SP_VFAST, desc:'护盾 240；助跑 3 格进入冲刺，冲刺那一下 532 范围伤害（平时 266，DPS 190）' },
+  furnace:      { name:'烈焰熔炉',   cost:4, type:'troop', firstHit:0.5, count:1, hp:727, dmg:179, hitSpeed:1.7, speed:SP_MED, range:RG(5.5), radius:24, glyph:'🏭', c1:'#e08a4a', c2:'#8a3a1a', targetsAir:true, shot:'flame', spawnEvery:5, spawnCard:'fireSpirit', spawnCount:1, desc:'改版后的熔炉：落地立刻产一个烈焰精灵，之后每 5 秒一个；会走会打（179/1.7 秒，5.5 格，空地通吃）' },
+  hunter:       { name:'猎人',       cost:4, type:'troop', firstHit:1.1, count:1, hp:885, dmg:84, hitSpeed:2.2, speed:SP_MED, range:RG(4), radius:20, glyph:'🐾', c1:'#8a7a5a', c2:'#4a3a22', targetsAir:true, shot:'pellet', pellets:10, projRange:RG(6.5), desc:'霰弹枪：一次打出 10 颗 84 伤害的弹丸，贴脸全中、越远命中越少（弹丸最远 6.5 格）' },
   poison:       { name:'毒药法术',   cost:4, type:'spell', dmg:92, towerDmg:21, spellRadius:RG(3.5), poisonDur:8, glyph:'🐍', c1:'#7ac04a', c2:'#2a5a1a', desc:'半径 3.5 格、持续 8 秒：每秒 92 伤害（塔 21），范围内敌人减速 15%' },
   // —— 第十二批：飞行器 / 亡灵巨人 / 战斗天使 / 冰冻法术 ——
   //   飞行器：614 / 179 / 1.1 秒 / 快 / 6 格 / 空地通吃 / 飞行
   //   亡灵巨人：1817 / 153 / 1.7 秒 / 中等 / 4 格 / 只打建筑
   //   战斗天使：1920 / 268 / 2 秒 / 中等 / 近战:长 / 只打地面；登场治疗 200，每次攻击治疗 100，半径 3 格
   //   冰冻法术：半径 3 / 148 伤害（塔 38）/ 冰冻 3.5 秒
-  flyingMachine:{ name:'飞行器',     cost:4, type:'troop', count:1, hp:614, dmg:179, hitSpeed:1.1, speed:SP_FAST, range:RG(6), radius:20, glyph:'🛩️', c1:'#d8b46a', c2:'#8a6a2a', targetsAir:true, flying:true, shot:'bullet', desc:'飞行单位，6 格射程，空中地面都能打（DPS 163）' },
-  giantSkeleton:{ name:'亡灵巨人',   cost:4, type:'troop', count:1, hp:1817, dmg:153, hitSpeed:1.7, speed:SP_MED, range:RG(4), radius:26, glyph:'🧟', c1:'#b8c8a8', c2:'#5a6a4a', targetsAir:false, flying:true, buildingsOnly:true, shot:'bone', desc:'飞行单位，只打建筑：4 格射程，飘过河直接压塔（DPS 90）' },
-  battleHealer: { name:'战斗天使',   cost:4, type:'troop', count:1, hp:1920, dmg:268, hitSpeed:2, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'👼', c1:'#f0d8a8', c2:'#b08a4a', targetsAir:false, spawnHeal:200, healOnHit:100, healRadius:RG(3), desc:'登场治疗周围友军 200；每次攻击治疗 100（半径 3 格），只打地面（DPS 134）' },
+  flyingMachine:{ name:'飞行器',     cost:4, type:'troop', firstHit:0.5, count:1, hp:614, dmg:179, hitSpeed:1.1, speed:SP_FAST, range:RG(6), radius:20, glyph:'🛩️', c1:'#d8b46a', c2:'#8a6a2a', targetsAir:true, flying:true, shot:'bullet', desc:'飞行单位，6 格射程，空中地面都能打（DPS 163）' },
+  giantSkeleton:{ name:'亡灵巨人',   cost:4, type:'troop', firstHit:0.3, count:1, hp:1817, dmg:153, hitSpeed:1.7, speed:SP_MED, range:RG(4), radius:26, glyph:'🧟', c1:'#b8c8a8', c2:'#5a6a4a', targetsAir:false, flying:true, buildingsOnly:true, shot:'bone', desc:'飞行单位，只打建筑：4 格射程，飘过河直接压塔（DPS 90）' },
+  battleHealer: { name:'战斗天使',   cost:4, type:'troop', firstHit:0.3, count:1, hp:1920, dmg:268, hitSpeed:2, speed:SP_MED, range:R_MELEE_L, radius:21, glyph:'👼', c1:'#f0d8a8', c2:'#b08a4a', targetsAir:false, spawnHeal:200, healOnHit:100, healRadius:RG(3), desc:'登场治疗周围友军 200；每次攻击治疗 100（半径 3 格），只打地面（DPS 134）' },
   freeze:       { name:'冰冻法术',   cost:4, type:'spell', dmg:148, towerDmg:38, spellRadius:RG(3), stun:3.5, freezeSpell:true, glyph:'🌨️', c1:'#a8e4ff', c2:'#4a9ac8', desc:'半径 3 格：范围内所有敌人（含空中）冰冻 3.5 秒，并造成 148 伤害（塔 38）' },
-  mortar:      { name:'迫击炮', cost:4, type:'building', hp:1369, dmg:266, hitSpeed:4.7, range:RG(11.5), minRange:RG(3.5), radius:28, glyph:'🎇', c1:'#9aa06a', c2:'#4f5a2a', targetsAir:false, lifetime:30, deploy:3.5, splash:RG(2), shot:'shell', shotNoHome:true, desc:'建筑：射程 11.5 格、盲区 3.5 格（贴身打不到），炮弹溅射 2 格；部署要 3.5 秒（DPS 57）' }
+  mortar:      { name:'迫击炮', cost:4, type:'building', firstHit:1, hp:1369, dmg:266, hitSpeed:4.7, range:RG(11.5), minRange:RG(3.5), radius:28, glyph:'🎇', c1:'#9aa06a', c2:'#4f5a2a', targetsAir:false, lifetime:30, deploy:3.5, splash:RG(2), shot:'shell', shotNoHome:true, desc:'建筑：射程 11.5 格、盲区 3.5 格（贴身打不到），炮弹溅射 2 格；部署要 3.5 秒（DPS 57）' }
 };
 const CARD_POOL = Object.keys(CARDS).filter(id => !CARDS[id].hidden);   // 圣水小戈仑 / 泡泡这类分身不进牌库
 // 牌库展示顺序：先按圣水从低到高；同费时按「部队 → 建筑 → 法术」分组，
@@ -1477,10 +1493,28 @@ function clampSpawn(x, y){
   return { x: clamp(x, 34, AW - 34), y: clamp(y, 34, AH - 34) };
 }
 
+// 弧形两排三列（亡灵大军）：3 列 × 2 排，每排中间那列往外鼓 bow，两侧收回来。
+//   两排各往自己那侧鼓 → 上下对称，整体是一道弧（用户手绘的排布）。
+function arcFormation(x, y, team){
+  const sp = 38, dy = 19, bow = 11;
+  const fwd = team === 'ai' ? 1 : -1;          // 「前」在 y 轴上的方向
+  const pts = [];
+  for (const row of [1, -1]){                  // +1 前排、-1 后排
+    for (const col of [-1, 0, 1]){
+      const bulge = col === 0 ? bow : 0;       // 中间列外凸，两侧回收
+      pts.push({ x: clamp(x + col * sp, 34, AW - 34),
+                 y: clamp(y + row * (dy + bulge) * fwd, 34, AH - 34) });
+    }
+  }
+  return pts;
+}
+
 function formation(n, x, y, team, form){
+  if (form === 'arc') return arcFormation(x, y, team);
   if (form === '221') return wedge221(x, y, team);
   if (form === 'tri') return triangle3(x, y, team);
   if (form === 'penta') return pentagon5(x, y, team);
+  if (form === 'ellipse') return ellipseFormation(n, x, y);   // 松散椭圆（亡灵大军）
   if (form === 'line'){                  // 一字横排（皇家野猪）
     const sp = 44, pts = [];
     for (let i = 0; i < n; i++)
@@ -1686,6 +1720,27 @@ function castPoison(c, team, x, y){
                  dps: c.dmg, towerDps: c.towerDmg != null ? c.towerDmg : c.dmg, tick: 0 });
 }
 
+// 套索定身（蛮羊骑士）：同样是不能移动、但能攻击；**不把飞行单位拽下来**
+//   （藤蔓那套 applyRoot 会把 flyer 拉到地面，套索只是套住，不该改飞行状态）
+function applySnare(e, dur){
+  if (!e || e.dead || e.isTower || e.isBuilding || !dur) return;
+  e.rootT = Math.max(e.rootT || 0, dur);
+}
+
+// 蛮羊骑士的套索找目标：5.5 格内最近的敌方「兵」（塔和建筑交给羊去撞，不打）
+//   骑士打空中也打地面，所以这里不看 targetsAir
+function findRiderTarget(e){
+  let best = null, bd = e.riderRange;
+  for (const o of G.ents){
+    if (o.dead || o.team === e.team) continue;
+    if (o.isTower || o.isBuilding) continue;
+    if (o.cloak || o.hidden) continue;
+    const edge = Math.max(0, dist(o, e) - o.radius - e.radius);
+    if (edge <= bd){ bd = edge; best = o; }
+  }
+  return best;
+}
+
 // 定身：不能移动，但可以正常攻击（和皇室战争的「定身」一致）。
 //   飞行单位被拽下来：临时把 flying 关掉，定身结束时再恢复（wasFlying 记录原状态）。
 function applyRoot(e, dur){
@@ -1847,8 +1902,12 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     pierce: !!c.pierce, pierceRange: c.pierceRange || 0,
     // 地狱飞龙：同一目标连续灼烧，伤害从 dmg 一路涨到 rampTo
     rampTo: c.rampTo || 0, rampTicks: c.rampTicks || 10, rampN: 0, relockT: 0,
-    // 闪电法师：每次攻击连锁 zapCount 个目标，命中附带 stunOnHit 秒眩晕
-    zapCount: c.zapCount || 0, stunOnHit: c.stunOnHit || 0,
+    // 闪电法师 / 雷电飞龙：每次攻击连锁 zapCount 个目标，命中附带 stunOnHit 秒眩晕
+    zapCount: c.zapCount || 0, stunOnHit: c.stunOnHit || 0, zapRange: c.zapRange || RG(2.5), zapGap: c.zapGap || 0,
+    // 蛮羊骑士：背上的骑士单独一套攻击（伤害 / 攻速 / 射程 / 定身时长）
+    riderDmg: c.riderDmg || 0, riderHitSpeed: c.riderHitSpeed || 1.1,
+    riderRange: c.riderRange || 0, riderRoot: c.riderRoot || 0,
+    riderCool: c.riderDmg ? (c.riderFirst != null ? c.riderFirst : 0.4) : 0,
     // 哥布林爆破手：血量掉到一半开始冲锋，冲锋中阵亡 / 撞到建筑自爆
     demolish: !!c.demolish, demolishing: false, blasted: false,
     // 凤凰蛋：孵化倒计时 + 孵出来是什么
@@ -1872,7 +1931,8 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     // 固定进攻路（0=左 1=右）：召唤出来的兵用召唤者的路，避免「同一点出生的两个兵各走一边」
     lane: lane == null ? null : lane,
     spawnT: o.deploy != null ? o.deploy : (c.deploy || DEPLOY_TIME),
-    firstHit: o.firstHit != null ? o.firstHit : null,
+    // 首次出手速度（秒）：召唤时可以用 opts.firstHit 覆盖，否则用卡面数值（官方首次出手速度表）
+    firstHit: o.firstHit != null ? o.firstHit : (c.firstHit != null ? c.firstHit : null),
     anim: Math.random()*6, facing: team === 'player' ? -1 : 1
   };
   G.ents.push(u);
@@ -2398,19 +2458,33 @@ function applyHit(u, t, at){
       sfxZap();
       G.fx.push({ type:'spell', x:t.x, y:t.y, r: 30, a:0.62, t:0, life:0.20, color:'#8fd0ff',
                   core:'#ffffff', edge:'rgba(90,160,255,0)' });
-      let second = null, bd = RG(2.5);
-      for (const o of G.ents){
-        if (o.dead || o.team === u.team || o === t) continue;
-        if (o.flying && !u.targetsAir) continue;
-        if (o.cloak) continue;
-        const dd = dist(o, t);
-        if (dd < bd){ bd = dd; second = o; }
-      }
-      if (second){
-        hit(second);
-        G.fx.push({ type:'arc', x0:t.x, y0:t.y, x1:second.x, y1:second.y, t:0, life:0.17,
-                    seed: Math.random() * 6.283, jag: 7 });
-        G.fx.push({ type:'ring', x:second.x, y:second.y, r0: 4, r1: 26, t:0, life:0.20, color:'#eaf6ff' });
+      // 连锁：从上一次打到的目标再跳到最近的下一个，最多 zapCount 个（闪电法师 2、雷电飞龙 3）
+      //   zapGap > 0 的卡（雷电飞龙）不是同时结算：每一跳间隔 zapGap 秒，
+      //   电弧一段一段打出去，伤害和眩晕都在那一段到达时才结算（见 update() 里 G.pending 的 chain）。
+      let from = t;
+      const chained = new Set([t]);
+      const gap = u.zapGap || 0;
+      for (let k = 1; k < u.zapCount; k++){
+        let next = null, bd = u.zapRange || RG(2.5);
+        for (const o of G.ents){
+          if (o.dead || o.team === u.team || chained.has(o)) continue;
+          if (o.flying && !u.targetsAir) continue;
+          if (o.cloak || o.hidden) continue;
+          const dd = dist(o, from);
+          if (dd < bd){ bd = dd; next = o; }
+        }
+        if (!next) break;
+        chained.add(next);
+        if (gap > 0){
+          G.pending.push({ t: k * gap, chain: true, arcFx: true, from, target: next,
+                           dmg: u.dmg, stun: u.stunOnHit, src: u });
+        } else {
+          hit(next);
+          G.fx.push({ type:'arc', x0: from.x, y0: from.y, x1: next.x, y1: next.y, t:0, life:0.17,
+                      seed: Math.random() * 6.283, jag: 7 });
+          G.fx.push({ type:'ring', x:next.x, y:next.y, r0: 4, r1: 26, t:0, life:0.20, color:'#eaf6ff' });
+        }
+        from = next;
       }
     }
     G.fx.push({ type:'spark', x:t.x, y:t.y, t:0, life:0.2 });
@@ -2653,8 +2727,14 @@ function update(dt){
           const o = q.target;
           if (o && !o.dead){                       // 到达前目标已经死了 → 这一跳跳过
             const x0 = q.from ? q.from.x : o.x, y0 = q.from ? q.from.y : o.y;
-            G.fx.push({ type:'shot', kind:'zap', x0, y0, x1: o.x, y1: o.y, t:0,
-                        life: 0.14, color:'#bfe0ff', w: 2.6, arc: 0, seed: Math.random() * 6.283 });
+            if (q.arcFx){
+              G.fx.push({ type:'arc', x0, y0, x1: o.x, y1: o.y, t:0, life: 0.17,
+                          seed: Math.random() * 6.283, jag: 7 });
+              G.fx.push({ type:'ring', x:o.x, y:o.y, r0: 4, r1: 26, t:0, life: 0.20, color:'#eaf6ff' });
+            } else {
+              G.fx.push({ type:'shot', kind:'zap', x0, y0, x1: o.x, y1: o.y, t:0,
+                          life: 0.14, color:'#bfe0ff', w: 2.6, arc: 0, seed: Math.random() * 6.283 });
+            }
             damage(o, q.dmg, q.src);
             if (q.stun) applyStun(o, q.stun);
           }
@@ -2812,6 +2892,14 @@ function update(dt){
   G.ents = G.ents.filter(e => !e.dead);
 }
 
+// 贴塔滑动时方向锁定：走出 24px 之前不改方向。
+//   否则在塔角/塔缝里，「远离塔心」那一侧会逐帧翻转 → 兵原地左右抖（用户反馈的「抽搐」）。
+function lockedDir(e, want){
+  if (e.slideDir && e.slideAt && Math.hypot(e.x - e.slideAt.x, e.y - e.slideAt.y) < 24) return e.slideDir;
+  e.slideDir = want; e.slideAt = { x: e.x, y: e.y };
+  return want;
+}
+
 // 带「沿塔身滑动」的位移：先按目标方向走，撞上塔身就贴着塔的侧面滑过去。
 //   只做推出（pushOutOfTowers）是不够的 —— 单位正对着塔走时，每帧都被沿来路顶回去，
 //   净位移为 0，看起来就是「卡在公主塔后面不动」（实测把兵放在自己公主塔正后方，
@@ -2834,18 +2922,18 @@ function moveStep(e, sx, sy, wp){
     const len = Math.hypot(sx, sy);
     if (ox < oy){
       // 撞的是左右两面 → 沿竖直方向滑
-      e.x = o.x + (dx < 0 ? -hw : hw);
+      e.x += clamp((o.x + (dx < 0 ? -hw : hw)) - e.x, -MAX_PUSH, MAX_PUSH);
       // 方向取「自己已经偏出的那一侧」：用路点方向会在中心线上左右来回抖
       // （向左滑 0.7px → 路点又变成在右边 → 滑回来，实测原地抖一整天）
-      const dir = Math.abs(dy) > 0.5 ? Math.sign(dy) : (Math.sign(wp.y - e.y) || 1);
-      // 前冲分量要「明显」才用（>50% 的步长），否则一律按切向全速滑：
-      //   贴着塔角时前冲分量只有 10% 左右，用它会和推出方向来回打架，原地抖 ±1px 出不来
-      e.y += Math.abs(sy) > len * 0.5 ? sy : dir * len;
+      const dir = lockedDir(e, Math.abs(dy) > 0.5 ? Math.sign(dy) : (Math.sign(wp.y - e.y) || 1));
+      // 注意：正常的 y 位移上面已经加过了，这里**只能补**「正撞时缺的切向步」。
+      //   以前写成 `e.y += (… ? sy : dir*len)`，斜着贴墙时 y 会走两倍 → 看起来「经过塔后突然加速」。
+      if (Math.abs(sy) <= len * 0.5) e.y += dir * len;
     } else {
       // 撞的是上下两面 → 沿水平方向滑
-      e.y = o.y + (dy < 0 ? -hh : hh);
-      const dir = Math.abs(dx) > 0.5 ? Math.sign(dx) : (Math.sign(wp.x - e.x) || 1);
-      e.x += Math.abs(sx) > len * 0.5 ? sx : dir * len;
+      e.y += clamp((o.y + (dy < 0 ? -hh : hh)) - e.y, -MAX_PUSH, MAX_PUSH);
+      const dir = lockedDir(e, Math.abs(dx) > 0.5 ? Math.sign(dx) : (Math.sign(wp.x - e.x) || 1));
+      if (Math.abs(sx) <= len * 0.5) e.x += dir * len;
     }
   }
   clampToArena(e);
@@ -2864,8 +2952,8 @@ function pushOutOfTowers(e){
     const dx = e.x - o.x, dy = e.y - o.y;
     if (Math.abs(dx) < hw && Math.abs(dy) < hh){
       const ox = hw - Math.abs(dx), oy = hh - Math.abs(dy);
-      if (ox < oy) e.x = o.x + (dx < 0 ? -hw : hw);      // 从更浅的一侧推出去
-      else         e.y = o.y + (dy < 0 ? -hh : hh);
+      if (ox < oy) e.x += clamp((o.x + (dx < 0 ? -hw : hw)) - e.x, -MAX_PUSH, MAX_PUSH);   // 从更浅的一侧推出去
+      else         e.y += clamp((o.y + (dy < 0 ? -hh : hh)) - e.y, -MAX_PUSH, MAX_PUSH);
     }
   }
   clampToArena(e);
@@ -3124,6 +3212,24 @@ function updateEnt(e, dt){
   //   贴着塔边打不到的兵看起来就像「明明在射程里却不开火」。
   const reach = e.range + (e.radius || 0) + t.radius;
 
+  // 蛮羊骑士：背上的骑士独立开火 —— 每 1.1 秒朝 5.5 格内最近的敌人甩一记套索
+  //   （104 伤害 + 定身 2 秒）。她自己只撞建筑，所以这条和主攻击互不影响。
+  if (e.riderDmg > 0 && !(e.spawnT > 0)){
+    if (e.riderCool > 0) e.riderCool -= dt;
+    if (e.riderCool <= 0){
+      const o = findRiderTarget(e);
+      if (o){
+        e.riderCool = e.riderHitSpeed;
+        damage(o, e.riderDmg, e, true);
+        applySnare(o, e.riderRoot);
+        G.fx.push({ type:'ring',  x:o.x, y:o.y, r0: 5, r1: 26, t:0, life:0.26, color:'#ffd08a' });
+        G.fx.push({ type:'spark', x:o.x, y:o.y, t:0, life:0.22, color:'#ffe6b0', r: 10, n: 5 });
+        G.fx.push({ type:'shot', kind:'spear', x0: e.x, y0: e.y - 10, x1: o.x, y1: o.y,
+                    t:0, life: 0.16, color:'#ffd08a', w: 3.0, arc: 0, seed: 0 });
+      }
+    }
+  }
+
   // 渔夫：3.5~7 格内的地面敌人会被钩子拽到身边（先飞 0.28 秒，再瞬移过来）
   if (e.cardId === 'fisherman' && e.hookMax > 0 && !(e.spawnT > 0)){
     if (e.hookCd > 0) e.hookCd -= dt;
@@ -3198,6 +3304,11 @@ function updateEnt(e, dt){
     //   落地那 1 秒不算蓄力（spawnT 期间本来就不能打），所以是从落地后开始等。
     //   自爆单位（精灵 / 攻城炸弹人）例外：它们的「出手」就是扑上去炸，
     //   在射程边缘站桩 0.7 秒等于白挨打 —— 实测攻城炸弹人会因此死掉一只（塔只掉 302 而不是 604）。
+    // 公主塔：锁定目标后先等 0.5 秒（国王塔不读招，保持即时开火）
+    if (e.isTower && e.kind !== 'king' && !e.atkReady){
+      e.atkReady = true;
+      e.cool = Math.max(e.cool, TOWER_FIRST_HIT);
+    }
     if (!e.atkReady && !e.isTower && !e.suicide && !(e.spawnT > 0)){
       e.atkReady = true;
       // 打「兵」要读招 0.7 秒；打「塔 / 建筑」只要 0.35 秒 —— 塔是死的，不会还手也不会走位，
@@ -3345,7 +3456,7 @@ function separate(){
       const min = a.radius + b.radius;
       if (dd < min && dd > 0.001){
         const nx = dx / dd, ny = dy / dd;
-        const total = min - dd;
+        const total = Math.min(min - dd, MAX_PUSH);   // 一帧最多推开这么多，深重叠分几帧化开
         let wa, wb;
         if (aFix && !bFix){ wa = 0; wb = 1; }
         else if (bFix && !aFix){ wa = 1; wb = 0; }
@@ -3672,7 +3783,7 @@ function draw(){
   }
   // 上下两排凸出的格子（7 格宽）
   for (const [yTop, yBot] of [[-PAD_ROW, 0], [AH, AH + PAD_ROW]]){
-    for (let i = 0; i <= 7; i++){
+    for (let i = 0; i <= Math.round(BUMP_W / TILE); i++){
       const x = Math.round(BUMP_X0 + i * TILE) + 0.5;
       ctx.moveTo(x, yTop); ctx.lineTo(x, yBot);
     }
@@ -4443,10 +4554,11 @@ function drawPiece(u, c, r, cx, cy, sc){
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.fill();
 
-  // 图标
+  // 图标：卡面和场上可以是同一个种族但不同卡（亡灵大军 🦟 vs 亡灵 👻）
+  //   这种卡用 unitGlyph 指定「场上长什么样」，卡面/手牌还是用 glyph
   ctx.font = (r * 1.25 | 0) + 'px "Segoe UI Emoji",system-ui';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(c.glyph, 0, r * 0.06);
+  ctx.fillText(c.unitGlyph || c.glyph, 0, r * 0.06);
 
   // 高光
   ctx.beginPath();
