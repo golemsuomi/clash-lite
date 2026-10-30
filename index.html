@@ -589,7 +589,7 @@ const CARDS = {
   rage:        { name:'狂暴法术',   cost:2, type:'spell', dmg:179, towerDmg:46, spellRadius:RG(3), rageDur:4.5, glyph:'🌀', c1:'#c86ae0', c2:'#7a2a9a', desc:'半径 3 格，179 伤害（塔 46）；4.5 秒内区域里的己方单位移动与攻击速度 +30%' },
   goblinBarrel:{ name:'哥布林飞桶', cost:3, type:'spell', spellRadius:RG(1.5), spawnTroops:'goblin', spawnCount:3, projSpeed:RG(800/60), projKind:'barrel', glyph:'🪂', c1:'#8fbf4a', c2:'#4f7a1c', desc:'飞向目标点砸开，召唤 3 个哥布林（呈三角形分布）；本身不造成伤害' },
   tombstone:   { name:'骷髅墓碑',   cost:3, type:'building', hp:529, dmg:0, hitSpeed:1, range:RG(0), radius:26, glyph:'🪦', c1:'#9a8fb0', c2:'#4f4566', lifetime:30, spawnEvery:4, spawnCard:'skeletons', spawnCount:2, deathSpawn:4, desc:'建筑，落地立刻召唤 2 个骷髅兵，之后每 4 秒再召唤 2 个，持续 30 秒；被摧毁时额外召唤 4 个' },
-  guards:      { name:'骷髅守卫',   cost:3, type:'troop', firstHit:0.4, count:3, form:'tri', hp:81, shield:256, dmg:117, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_L, radius:15, glyph:'🦴', c1:'#b9b9c4', c2:'#5f5f7a', targetsAir:false, desc:'三只骷髅，护盾可完整挡下一次任意大小的伤害（DPS 117）' },
+  guards:      { name:'骷髅守卫',   cost:3, type:'troop', firstHit:0.4, count:3, form:'tri', hp:81, shield:256, dmg:117, hitSpeed:1.0, speed:SP_FAST, range:R_MELEE_L, radius:15, glyph:'🪖', c1:'#b9b9c4', c2:'#5f5f7a', targetsAir:false, desc:'三只骷髅，护盾可完整挡下一次任意大小的伤害（DPS 117）' },
   // —— 第七批：哥布林团伙 / 骷髅气球 / 吹箭哥布林 / 藤蔓法术（数值表最新 4 行）——
   //   团伙：前排 3 个哥布林 + 后排 3 个哥布林投矛手（两种兵一起出，见 doSpawn 的特例）
   //   骷髅气球：523 血 / 快 / 飞行且只打建筑 / 被打爆或撞塔时 163 范围伤害 + 掉 7 个骷髅
@@ -640,15 +640,24 @@ const CARDS = {
   battleRam:   { name:'野蛮人攻城锤', cost:4, type:'troop', firstHit:0.35, count:1, hp:967, dmg:286, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_S, radius:22, glyph:'🔨', c1:'#d8a45a', c2:'#8a5a1c', targetsAir:false, buildingsOnly:true, chargeDist:RG(3), chargeDmg:573, chargeSpeed:SP_VFAST, breaksOnHit:true, deathSpawn:2, spawnCard:'barbarians', desc:'只打建筑：助跑 3 格后进入冲刺（极快），撞上那一下 573 伤害，然后散成 2 个野蛮人' },
   skeletonDragons:{ name:'骷髅飞龙', cost:4, type:'troop', firstHit:0.6, count:2, hp:560, dmg:151, hitSpeed:2, speed:SP_FAST, range:RG(3.5), radius:20, glyph:'🩻', c1:'#a8d8e8', c2:'#4a7a9a', targetsAir:true, flying:true, splash:RG(1.2), shot:'flame', desc:'2 只飞行单位，范围伤害，空中地面都能打（DPS 76）' },
   bombTower:   { name:'炸弹塔', cost:4, type:'building', firstHit:0.5, hp:1356, dmg:222, hitSpeed:1.8, range:RG(6), radius:28, glyph:'🏯', c1:'#8a8a96', c2:'#4a4a55', targetsAir:false, lifetime:30, splash:RG(1.5), shot:'bomb', deathBlast:RG(1.5), deathDmg:222, desc:'建筑，只打地面、范围伤害；30 秒到期或被摧毁时炸一圈 222（DPS 123）' },
+  // —— 第二十批：骷髅巨人 / 哥布林巨人 / 野蛮人小屋 / 野蛮人精锐 ——
+  //   骷髅巨人：3361 / 276 / 1.3 秒 / 中等 / 近战:短 / 地面；死后掉炸弹，3 秒后炸 688（半径 3 格）
+  //   哥布林巨人：3110 / 176 / 1.5 秒 / 中等 / 近战:中 / 只打建筑；背上两只投矛手按投矛手数据打人
+  //   野蛮人小屋：1164 血 / 30 秒；落地立刻出 3 个野蛮人，之后每 15 秒一波，被摧毁时再出 1 个
+  //   野蛮人精锐：1341 / 384 / 1.4 秒 / 快 / 近战:中 / 地面，一次两个（DPS 274）
+  skeletonGiant:{ name:'骷髅巨人',   cost:6, type:'troop', firstHit:0.5, count:1, hp:3361, dmg:276, hitSpeed:1.3, speed:SP_MED, range:R_MELEE_S, radius:28, glyph:'🦴', c1:'#d8d0b8', c2:'#6a6450', targetsAir:false, deathBombDmg:688, deathBombR:RG(3), deathBombDelay:3, desc:'3361 血的肉盾（DPS 212）；死后掉一个炸弹，3 秒后炸 688 范围伤害（半径 3 格，塔也吃）' },
+  goblinGiant:  { name:'哥布林巨人', cost:6, type:'troop', firstHit:0.5, count:1, hp:3110, dmg:176, hitSpeed:1.5, speed:SP_MED, range:R_MELEE_M, radius:28, glyph:'🧌', c1:'#8fc44a', c2:'#3f6a1c', targetsAir:false, buildingsOnly:true, riderDmg:162, riderHitSpeed:1.6, riderRange:RG(5), riderBuildings:true, riderFirst:0.5, desc:'只打建筑；背上两只哥布林投矛手每 1.6 秒朝 5 格内敌人各投一矛（81×2，塔和建筑也打）' },
+  barbarianHut: { name:'野蛮人小屋', cost:6, type:'building', hp:1164, dmg:0, hitSpeed:1, range:RG(0), radius:28, glyph:'⛺', c1:'#c8a86a', c2:'#7a5a2a', lifetime:30, spawnEvery:15, spawnCard:'barbarians', spawnCount:3, spawnStagger:0.12, deathSpawn:1, desc:'建筑：落地立刻出一波 3 个野蛮人，之后每 15 秒再出一波，持续 30 秒；被摧毁时再出 1 个' },
+  eliteBarbarians:{ name:'野蛮人精锐', cost:6, type:'troop', firstHit:0.4, count:2, hp:1341, dmg:384, hitSpeed:1.4, speed:SP_FAST, range:R_MELEE_M, radius:20, glyph:'⚒️', c1:'#e0b04a', c2:'#9c7015', targetsAir:false, desc:'两个快速近战一起冲，一人 384 一下（DPS 274）' },
   // —— 第十九批：加农炮战车 / 哥布林机甲 / 皇家巨人 / 火箭 ——
   //   加农炮战车：1809 / 202 / 0.9 秒 / 中等 / 5.5 格 / 地面；血量低于 50% 变成建筑形态，每秒流失 30.15 血
   //   哥布林机甲：2265 / 232 / 1.2 秒 / 中等 / 近战:中 / 地面；额外每 5 秒射一发火箭（304 范围伤害，2.5~5 格，空地通吃）
-  //   皇家巨人：3164 / 307 / 1.8 秒 / 慢 / 5 格 / 只打建筑（5 费）
-  //   火箭：法术，半径 2 格，1484 伤害（塔 342），弹道 5.83 格/秒（5 费）
+  //   皇家巨人：3164 / 307 / 1.8 秒 / 慢 / 5 格 / 只打建筑（6 费）
+  //   火箭：法术，半径 2 格，1484 伤害（塔 342），弹道 5.83 格/秒（6 费）
   cannonCart:   { name:'加农炮战车', cost:5, type:'troop', firstHit:0.6, count:1, hp:1809, dmg:202, hitSpeed:0.9, speed:SP_MED, range:RG(5.5), radius:24, glyph:'🛞', c1:'#8f8f9a', c2:'#5a5a66', targetsAir:false, cartBreak:0.5, cartDrain:30.15, desc:'推着跑的加农炮（0.9 秒一发）；血量掉到一半就散架成固定炮台，每秒流失 30 血' },
   goblinMachine:{ name:'哥布林机甲', cost:5, type:'troop', firstHit:0.5, count:1, hp:2265, dmg:232, hitSpeed:1.2, speed:SP_MED, range:R_MELEE_M, radius:26, glyph:'👾', c1:'#8fbf4a', c2:'#3f6a1c', targetsAir:false, rocketDmg:304, rocketEvery:5, rocketMin:RG(2.5), rocketMax:RG(5), desc:'近战地面坦克；另外每 5 秒朝 2.5~5 格内的敌人射一发火箭（304 范围伤害，空地通吃）' },
-  royalGiant:   { name:'皇家巨人', cost:5, type:'troop', firstHit:0.7, count:1, hp:3164, dmg:307, hitSpeed:1.8, speed:SP_SLOW, range:RG(5), radius:28, glyph:'🧔', c1:'#c88a4a', c2:'#7a4a1a', targetsAir:false, buildingsOnly:true, desc:'5 费远程拆迁：只打建筑，5 格开炮（DPS 171）' },
-  rocket:       { name:'火箭',     cost:5, type:'spell', dmg:1484, towerDmg:342, spellRadius:RG(2), projSpeed:RG(5.83), projKind:'rocket', glyph:'🚀', c1:'#e0603a', c2:'#8a2a15', desc:'半径 2 格，1484 伤害（塔 342）；弹道 5.83 格/秒，砸下去清一片' },
+  royalGiant:   { name:'皇家巨人', cost:6, type:'troop', firstHit:0.7, count:1, hp:3164, dmg:307, hitSpeed:1.8, speed:SP_SLOW, range:RG(5), radius:28, glyph:'🧔', c1:'#c88a4a', c2:'#7a4a1a', targetsAir:false, buildingsOnly:true, desc:'6 费远程拆迁：只打建筑，5 格开炮（DPS 171）' },
+  rocket:       { name:'火箭',     cost:6, type:'spell', dmg:1484, towerDmg:342, spellRadius:RG(2), projSpeed:RG(5.83), projKind:'rocket', glyph:'🚀', c1:'#e0603a', c2:'#8a2a15', desc:'半径 2 格，1484 伤害（塔 342）；弹道 5.83 格/秒，砸下去清一片' },
   // —— 第十八批：骷髅召唤 / 飞斧屠夫 / 巨石投手 / 绿林团伙 ——
   //   骷髅召唤：法术，半径 4 格，持续 9 秒，共召唤 12 个骷髅兵（随机落点）
   //   飞斧屠夫：1280 / 179×2（斧头去、回各打一次）/ 2.4 秒 / 中等 / 4.5 格 / 空地；弹道 7 格
@@ -1809,7 +1818,7 @@ function findRiderTarget(e){
   let best = null, bd = e.riderRange;
   for (const o of G.ents){
     if (o.dead || o.team === e.team) continue;
-    if (o.isTower || o.isBuilding) continue;
+    if (!e.riderBuildings && (o.isTower || o.isBuilding)) continue;   // 蛮羊的骑士只打兵
     if (o.cloak || o.hidden) continue;
     const edge = Math.max(0, dist(o, e) - o.radius - e.radius);
     if (edge <= bd){ bd = edge; best = o; }
@@ -1985,6 +1994,9 @@ function spawnUnit(cardId, team, x, y, lane, opts){
     // 蛮羊骑士：背上的骑士单独一套攻击（伤害 / 攻速 / 射程 / 定身时长）
     riderDmg: c.riderDmg || 0, riderHitSpeed: c.riderHitSpeed || 1.1,
     riderRange: c.riderRange || 0, riderRoot: c.riderRoot || 0,
+    riderBuildings: !!c.riderBuildings,        // 哥布林巨人的投矛手连塔和建筑一起打
+    // 骷髅巨人：死后掉的炸弹（延迟引爆）
+    deathBombDmg: c.deathBombDmg || 0, deathBombR: c.deathBombR || 0, deathBombDelay: c.deathBombDelay || 0,
     riderCool: c.riderDmg ? (c.riderFirst != null ? c.riderFirst : 0.4) : 0,
     // 哥布林爆破手：血量掉到一半开始冲锋，冲锋中阵亡 / 撞到建筑自爆
     demolish: !!c.demolish, demolishing: false, blasted: false,
@@ -2231,6 +2243,12 @@ function kill(e){
     // 药水先掉 0.2 秒（带影子往下坠），落地那一下才炸开、铺区域、结算伤害
     G.fx.push({ type:'potion', x:e.x, y:e.y, t:0, life: RAGE_DROP });
     G.pending.push({ t: RAGE_DROP, rageDrop: { x: e.x, y: e.y, r: RG(3), team: e.team } });
+  }
+  // 骷髅巨人：死后**原地掉一个炸弹**，3 秒后引爆（688 伤害、半径 3 格，塔也吃）
+  if (dc && dc.deathBombDmg && !e.isTower){
+    G.fx.push({ type:'fuseBomb', x:e.x, y:e.y, t:0, life: dc.deathBombDelay, r: dc.deathBombR });
+    G.pending.push({ t: dc.deathBombDelay,
+                     bomb: { x: e.x, y: e.y, r: dc.deathBombR, dmg: dc.deathBombDmg, team: e.team } });
   }
   if (dc && dc.deathBlast && !e.isTower){
     G.fx.push({ type:'ring',  x:e.x, y:e.y, r0: 10, r1: dc.deathBlast, t:0, life:0.46, color:'#bfe8ff' });
@@ -2734,19 +2752,58 @@ function firstWaypoint(u, t){
     const d = Math.abs(u.x - br.x);
     if (d < bd){ bd = d; b = br; }
   }
-  // 自家公主塔正好挡在「自己 → 桥」的直线中间：先绕到塔的侧面，再往上走。
-  //   否则兵会一路贴着塔角磨，出现「抽搐 / 慢慢蹭」的现象。
+  // 自家公主塔正好挡在「自己 → 桥」的直线中间：先贴着塔的侧面绕到**塔顶上方**，再朝桥走。
+  //   目标只放到「塔的侧面」是不行的：走到侧面后目标又变回桥（塔正后方），兵被塔挡住再滑回侧面，
+  //   横向一帧左一帧右地来回翻（实测 3.5 秒翻 6~10 次，看着就是抽搐）。放到塔顶上方就只会绕一圈上去。
   for (const tw of G.ents){
     if (!tw.isTower || tw.dead || tw.kind === 'king' || tw.team !== u.team) continue;
-    const clear = tw.halfW + (u.radius || 0) + 14;
-    if (u.y > tw.y + tw.halfH &&                       // 自己在塔的下方
-        Math.abs(u.x - tw.x) < clear &&                // 横向正对着塔
-        Math.abs(b.x - tw.x) < tw.halfW + 10){         // 桥就在塔的正面后面
-      return { x: tw.x + (u.x >= tw.x ? clear : -clear),
-               y: tw.y + tw.halfH + (u.radius || 0) + 16 };
-    }
+    if (Math.abs(b.x - tw.x) >= tw.halfW + 10) continue;          // 桥不在塔的正后方，不用绕
+    const r = u.radius || 0;
+    const clear = tw.halfW + r + 16;                              // 贴着塔身外侧走
+    const topClear = tw.y - tw.halfH - r - 12;                    // 塔顶上方（往上过塔时，过了这里就放开）
+    const botClear = tw.y + tw.halfH + r + 12;                    // 塔底下方（往下过塔时，过了这里就放开）
+    // 往哪边过塔由河的位置决定：河在上方要往上过桥，河在下方要往下过（AI 的单位在自家塔「后面」）。
+    //   注意别用 b.y —— b 是桥对象，只有 x / w，没有 y（undefined 会让所有单位都判成「往下」）。
+    const goingUp = RIVER_MID < u.y;
+    if (goingUp ? (u.y < topClear) : (u.y > botClear)) continue;   // 已经过了塔，放开
+    if (Math.abs(u.x - tw.x) > clear + 30) continue;              // 横向离得远，走自己的路
+    // 往哪一侧绕**锁定**：一旦选了就绕完为止（换边只会在塔中线附近来回跳，看着就是抽搐）
+    let side = u.aroundDir;
+    if (!side) side = Math.abs(u.x - tw.x) > 6 ? Math.sign(u.x - tw.x)
+                                               : (tw.x > AW / 2 ? -1 : 1);   // 正对塔心时往场地内侧绕
+    if (tw.x + side * clear > AW - 40) side = -side;              // 那一侧贴墙就换边
+    u.aroundDir = side;
+    // 目标要放在**塔的另一侧、离塔够远**的地方：放在塔边上（只差几十像素、几乎同一高度）时
+    //   方向几乎是水平的，兵会贴着塔边慢慢蹭、还会因为条件抖动来回改主意（实测卡在塔后不动）。
+    return { x: tw.x + side * clear, y: goingUp ? topClear : botClear };
   }
+  u.aroundDir = null;                    // 不用绕塔了 → 下次重新选边
   return { x: b.x, y: RIVER_MID };
+}
+
+// 直线会不会「趟水」？—— 从 a 走到 wp 的线段如果穿过河道带、而穿过的位置不在桥上，
+//   就把目标换成最近那座桥的中心（先老老实实过桥）。
+//   不加这条会出现「贴着桥边抽搐」：兵站在桥的右边缘、目标在右上方的岸上，
+//   它想斜着往水里走（一帧往右），河道约束又把它往桥中心推（一帧往左），
+//   两边对着干 → 原地左右抖，实测 3 秒翻 18 次方向、只挪了 60px。
+function riverDetour(a, wp){
+  if (a.flying) return null;
+  const inBand = y => y > RIVER_TOP && y < RIVER_BOT;
+  // 都在河的同一边（都在河上方 / 都在河下方）→ 不用过河
+  if ((a.y <= RIVER_TOP && wp.y <= RIVER_TOP) || (a.y >= RIVER_BOT && wp.y >= RIVER_BOT)) return null;
+  // 求线段进入河道带的那个点的 x
+  let xc;
+  if (inBand(a.y)) xc = a.x;                       // 自己已经在河里：看自己站哪儿
+  else {
+    const yEdge = a.y < RIVER_TOP ? RIVER_TOP : RIVER_BOT;
+    const dy = wp.y - a.y;
+    const k = Math.abs(dy) < 1e-6 ? 0 : clamp((yEdge - a.y) / dy, 0, 1);
+    xc = a.x + (wp.x - a.x) * k;
+  }
+  for (const br of BRIDGE) if (Math.abs(xc - br.x) < br.w / 2 - 6) return null;   // 正好从桥上过
+  let best = BRIDGE[0], bd = Math.abs(a.x - BRIDGE[0].x);
+  for (const br of BRIDGE){ const d = Math.abs(a.x - br.x); if (d < bd){ bd = d; best = br; } }
+  return { x: best.x, y: RIVER_MID };
 }
 
 // 野猪骑士跳河：走进河道带就起跳，落点锁定在河对岸
@@ -2837,6 +2894,21 @@ function update(dt){
             if (Math.hypot(o.x - d.x, o.y - d.y) > d.r + o.radius * 0.7) continue;
             damage(o, d.dmg, d.src);
           }
+          continue;
+        }
+        if (q.bomb){
+          // 骷髅巨人的炸弹引爆：半径 3 格内所有敌人（含塔）吃 688
+          const d = q.bomb;
+          G.fx.push({ type:'boom',  x:d.x, y:d.y, r: d.r * 1.9, t:0, life:0.52, color:'#ffb04a' });
+          G.fx.push({ type:'ring',  x:d.x, y:d.y, r0: 8, r1: d.r, t:0, life:0.44, color:'#ffd27a' });
+          G.fx.push({ type:'spell', x:d.x, y:d.y, r: d.r, a:0.50, t:0, life:0.36, color:'#ffb04a', core:'#fff2c8' });
+          G.fx.push({ type:'spark', x:d.x, y:d.y, t:0, life:0.34, color:'#ffd9a0', r: d.r * 0.8, n: 12 });
+          for (const o of G.ents){
+            if (o.dead || o.team === d.team || o.hidden) continue;
+            if (Math.hypot(o.x - d.x, o.y - d.y) > d.r + o.radius * 0.6) continue;
+            damage(o, d.dmg, null);
+          }
+          sfxBoom();
           continue;
         }
         if (q.rageDrop){
@@ -3129,7 +3201,15 @@ function moveStep(e, sx, sy, wp){
     const ox = hw - Math.abs(dx), oy = hh - Math.abs(dy);
     const len = Math.hypot(sx, sy);
     blocked = true;
-    if (ox < oy){
+    // 推出方向要「粘住」：站在塔的角上时 ox 和 oy 差不多大，每帧重新比一次会一帧推 x、
+    //   一帧推 y，兵就被两边夹着原地抖（实测攻城炸弹人卡在塔后，4 秒里纵向翻转 60 次）。
+    //   一旦选了某个轴，除非另一个轴明显更浅（差 2 倍），否则继续用同一个轴。
+    let pushX;
+    if (e.pushAxis === 'x')      pushX = ox <= oy * 2;
+    else if (e.pushAxis === 'y') pushX = ox * 2 < oy;
+    else                         pushX = ox < oy;
+    e.pushAxis = pushX ? 'x' : 'y';
+    if (pushX){
       // 撞的是左右两面 → 沿竖直方向滑
       e.x += clamp((o.x + (dx < 0 ? -hw : hw)) - e.x, -MAX_PUSH, MAX_PUSH);
       // 方向取「自己已经偏出的那一侧」：用路点方向会在中心线上左右来回抖
@@ -3150,7 +3230,11 @@ function moveStep(e, sx, sy, wp){
     }
   }
   clampToArena(e);
-  if (!blocked) e.slideDir = null;      // 这一帧没撞墙 → 下次重新选边
+  // 撞墙结束后别立刻把方向清掉：贴着塔边时「撞一帧、松一帧」很常见，
+  //   每帧重置会让方向左右翻（实测在塔底沿上下抖 1~2px，看着就是抽搐）。
+  //   离开墙 4 帧（约 0.07 秒）才真正解锁。
+  if (blocked) e.noBlockT = 0;
+  else if (++e.noBlockT > 4){ e.slideDir = null; e.pushAxis = null; }
 }
 
 // 塔是实体：地面单位不能穿过塔身（飞行单位从塔顶掠过，不参与碰撞）。
@@ -3650,7 +3734,20 @@ function updateEnt(e, dt){
     }
     return;
   }
-  const wp = firstWaypoint(e, t);
+  let wp = firstWaypoint(e, t);
+  if (!e.jumpRiver){                       // 野猪骑士本来就要跳河，别拦它
+    const det = riverDetour(e, wp);
+    if (det) wp = det;
+  }
+  // 已经在河道带里：只能顺着桥走 —— 目标换成「最近那座桥的轴线 + 目标那一侧的岸」。
+  //   不这么做会出现「贴着桥边抽搐」：兵站在桥的右边缘、目标在右上方的岸上，
+  //   它一帧往右迈、河道约束一帧把它推回桥内，正好卡在边界上来回抖（实测 3 秒翻 18~28 次）。
+  if (!e.flying && e.y > RIVER_TOP - 6 && e.y < RIVER_BOT + 6){
+    let br = BRIDGE[0], bd = Math.abs(e.x - BRIDGE[0].x);
+    for (const q of BRIDGE){ const d = Math.abs(e.x - q.x); if (d < bd){ bd = d; br = q; } }
+    const up = !t || t.y < e.y;
+    wp = { x: br.x, y: up ? RIVER_TOP - 36 : RIVER_BOT + 36 };
+  }
   const ang = Math.atan2(wp.y - e.y, wp.x - e.x);
   // 攻城锤冲刺后速度从中等换成极快
   const spd = (e.charged && e.chargeSpeed) ? e.chargeSpeed : e.speed;
@@ -5542,6 +5639,28 @@ function drawFx(f){
     ctx.globalAlpha = 0.9 * (1 - p);
     ctx.beginPath(); ctx.arc(0, 0, rr * (1 + 0.5 * p), 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
+  } else if (f.type === 'fuseBomb'){
+    // 骷髅巨人的炸弹：地上的黑球 + 冒火的引线 + 虚线警示圈（倒计时结束就炸）
+    const p = clamp(k, 0, 1);
+    ctx.globalAlpha = 0.26 + 0.16 * Math.sin(G.t * 16);
+    ctx.setLineDash([9, 7]);
+    ctx.lineWidth = 2.4; ctx.strokeStyle = '#ff6a3a';
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(16,20,26,0.35)';
+    ctx.beginPath(); ctx.ellipse(f.x, f.y + 7, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+    const br = 12 + Math.sin(G.t * 22) * 1.3;
+    const bg = ctx.createRadialGradient(f.x - 4, f.y - 8, 2, f.x, f.y - 4, br);
+    bg.addColorStop(0, '#525a68'); bg.addColorStop(1, '#141920');
+    ctx.beginPath(); ctx.arc(f.x, f.y - 4, br, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#080b10'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = '#b08a4a'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(f.x + 6, f.y - 14);
+    ctx.quadraticCurveTo(f.x + 15, f.y - 21, f.x + 10, f.y - 26); ctx.stroke();
+    ctx.fillStyle = (Math.floor(G.t * 18) % 2) ? '#ffd25a' : '#ff7a3a';
+    ctx.beginPath(); ctx.arc(f.x + 10, f.y - 26, 3.4, 0, Math.PI * 2); ctx.fill();
   } else if (f.type === 'potion'){
     // 狂暴药水：从樵夫身上掉到地上，影子先出现、瓶子越来越低
     const p = clamp(k, 0, 1);
